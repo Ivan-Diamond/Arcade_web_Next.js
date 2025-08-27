@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { getSession } from 'next-auth/react'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://www.ruyuan.live/game/uaa'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://206.81.25.143:9991/uaa'
 
 export const axiosInstance = axios.create({
   baseURL: API_BASE_URL,

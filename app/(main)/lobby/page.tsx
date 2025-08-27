@@ -6,9 +6,12 @@ import { Search, Gamepad, Zap, AlertCircle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { roomService, type Machine, type LobbyData } from '@/lib/api/room-service'
 import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/lib/stores/useAuthStore'
+import { formatMachineName } from '@/lib/utils/formatMachineName'
 
 export default function LobbyPage() {
   const { data: session } = useSession()
+  const { user } = useAuthStore()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [lobbyData, setLobbyData] = useState<LobbyData | null>(null)
@@ -84,7 +87,7 @@ export default function LobbyPage() {
         <StatCard
           icon={<Zap className="w-6 h-6" />}
           label="Your Coins"
-          value={(session as any)?.coins || 0}
+          value={user?.coins || 0}
           color="green"
         />
       </motion.div>
@@ -159,6 +162,60 @@ function MachineCard({
   const isOnline = machine.netStatus === 1;
   const hasQueue = machine.inRoomCustomerAmount > 0;
 
+  // Map machine type/name to icon file
+  const getMachineIcon = (machineName: string, machineType: string): string => {
+    const nameUpper = machineName.toUpperCase();
+    const typeUpper = machineType.toUpperCase();
+    
+    // Check for specific machine names first
+    if (nameUpper.includes('BOOM') || nameUpper.includes('BALL')) {
+      return '/images/machineIcons/BOOM_BALL.webp';
+    }
+    if (nameUpper.includes('CATCH') || nameUpper.includes('MATCH')) {
+      return '/images/machineIcons/CATCH_MATCH.webp';
+    }
+    if (nameUpper.includes('LOLLIPOP') || nameUpper.includes('LOOP')) {
+      return '/images/machineIcons/LOLLIPOP_LOOP.webp';
+    }
+    if (nameUpper.includes('MONSTER') || nameUpper.includes('FOREST')) {
+      return '/images/machineIcons/MONSTER_FOREST.webp';
+    }
+    if (nameUpper.includes('ALIEN') || nameUpper.includes('COW')) {
+      return '/images/machineIcons/alienCow.webp';
+    }
+    if (nameUpper.includes('HIT') && nameUpper.includes('CUP')) {
+      return '/images/machineIcons/hitthecup1.webp';
+    }
+    
+    // Check machine types
+    if (nameUpper.includes('COLOR')) {
+      return '/images/machineIcons/color_game_icon.webp';
+    }
+    if (nameUpper.includes('PACHINKO')) {
+      return '/images/machineIcons/pachinko_icon.webp';
+    }
+    if (nameUpper.includes('RANDOM') || nameUpper.includes('HOLE')) {
+      return '/images/machineIcons/random_hole_icon.webp';
+    }
+    if (nameUpper.includes('REBOUND')) {
+      return '/images/machineIcons/rebound_game_icon.webp';
+    }
+    if (nameUpper.includes('SWEEP')) {
+      return '/images/machineIcons/sweeper_icon.webp';
+    }
+    if (nameUpper.includes('ANIMATED')) {
+      return '/images/machineIcons/moving_claw.webp';
+    }
+    
+    // Check if it's a classic claw machine (CM_X pattern)
+    if (nameUpper.startsWith('CM_') || typeUpper.includes('CLAW')) {
+      return '/images/machineIcons/claw_machine.webp';
+    }
+    
+    // Default to classic icon
+    return '/images/machineIcons/classic_icon.webp';
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -169,11 +226,11 @@ function MachineCard({
       {/* Machine Image */}
       <div className="relative w-full h-32 bg-dark-surface rounded-lg mb-3 overflow-hidden">
         <img 
-          src={machine.imgFileName ? `${process.env.NEXT_PUBLIC_API_URL}/${machine.imgFileName}` : '/images/placeholder-machine.png'}
+          src={getMachineIcon(machine.gameName, machine.machineType)}
           alt={machine.gameName}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain p-2"
           onError={(e) => {
-            e.currentTarget.src = '/images/placeholder-machine.png';
+            e.currentTarget.src = '/images/machineIcons/classic_icon.webp';
           }}
         />
         
@@ -193,7 +250,7 @@ function MachineCard({
       </div>
 
       {/* Machine Info */}
-      <h3 className="font-semibold text-white mb-1 truncate">{machine.gameName}</h3>
+      <h3 className="font-semibold text-white mb-1 truncate">{formatMachineName(machine.gameName)}</h3>
       <p className="text-sm text-gray-400 mb-2">{machine.machineType}</p>
       
       {/* Cost and Reward */}

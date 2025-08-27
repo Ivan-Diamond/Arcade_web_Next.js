@@ -3,12 +3,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Wifi, WifiOff, X, Play, Pause, RotateCcw, RotateCw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Coins, Timer, Users, Circle } from 'lucide-react'
+import { Wifi, WifiOff, X, Play, Pause, RotateCcw, RotateCw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Coins, Timer, Users, Circle, Camera, SwitchCamera } from 'lucide-react'
 import { getProtobufSocketClient } from '@/lib/socket/protobuf-socket-client'
 import ProtobufSocketClient from '@/lib/socket/protobuf-socket-client'
-import { WawaOptEnum } from '@/lib/types/game-types'
+import { WawaOptEnum } from '@/lib/socket/protobuf-socket-client'
 import { useGameNotifications } from '@/lib/hooks/useGameNotifications'
+import { useCoinNotifications } from '@/lib/hooks/useCoinNotifications'
 import GameResultModal from '@/components/game/GameResultModal'
+import FloatingCoinNotification from '@/components/ui/FloatingCoinNotification'
 import { WawaResultNotification } from '@/lib/types/game-notifications'
 import { WebRTCSignaling } from '@/lib/webrtc/signaling'
 import { roomService } from '@/lib/api/room-service'
@@ -36,7 +38,13 @@ export default function GameRoomPage() {
   const socketClientRef = useRef<ProtobufSocketClient | null>(null)
   const moveIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const gameNotifications = useGameNotifications(session?.user?.id || '')
+  const coinNotifications = useCoinNotifications()
+  const gameNotifications = useGameNotifications(session?.user?.id || '', coinNotifications.showCoinChange)
+
+  // Initialize coins on mount to prevent "undefined" notification
+  useEffect(() => {
+    gameNotifications.initializeCoins()
+  }, []) // Empty deps, run once on mount
 
   // Initialize WebRTC immediately with known camera patterns
   useEffect(() => {
@@ -78,7 +86,7 @@ export default function GameRoomPage() {
           console.log('SUCCESS! Connected to:', url)
           return // Exit on first success
         } catch (error) {
-          console.log('Failed:', url, error.message)
+          console.log('Failed:', url, (error as Error).message)
         }
       }
       
@@ -356,6 +364,9 @@ export default function GameRoomPage() {
     // Close any open notification before starting
     gameNotifications.clearCurrentNotification()
     
+    // Refresh coins when game starts (deduct cost)
+    gameNotifications.handleGameStart({})
+    
     socketClientRef.current?.startGame()
     setGameStatus('playing')
     setIsGameActive(true)
@@ -462,6 +473,23 @@ export default function GameRoomPage() {
             <div className="card-neon p-6">
               <h2 className="text-xl font-bold mb-6 text-neon-cyan">Controls</h2>
               
+              {/* Camera Switch Button */}
+              <button
+                onClick={handleSwitchCamera}
+                disabled={!isConnected || isVideoLoading}
+                className="w-full mb-6 px-4 py-3 bg-dark-surface hover:bg-neon-purple/20 
+                         disabled:opacity-50 disabled:cursor-not-allowed
+                         rounded-lg border border-neon-purple/50 
+                         flex items-center justify-center gap-3 transition-all
+                         hover:border-neon-purple hover:shadow-neon-purple"
+              >
+                <Camera className="w-5 h-5 text-neon-purple" />
+                <span className="text-neon-purple font-medium">
+                  {currentCamera === 0 ? 'Switch to Side View' : 'Switch to Front View'}
+                </span>
+                <SwitchCamera className="w-5 h-5 text-neon-purple" />
+              </button>
+              
               {/* D-Pad */}
               <div className="relative w-48 h-48 mx-auto mb-8">
                 {/* Up */}
@@ -563,6 +591,12 @@ export default function GameRoomPage() {
         notification={gameNotifications.currentNotification as WawaResultNotification}
         onClose={gameNotifications.clearCurrentNotification}
         onPlayAgain={handleStartGame}
+      />
+
+      {/* Floating Coin Change Notification */}
+      <FloatingCoinNotification 
+        change={coinNotifications.notification?.change || null}
+        onComplete={coinNotifications.clearNotification}
       />
     </div>
   )

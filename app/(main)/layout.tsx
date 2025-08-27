@@ -50,7 +50,6 @@ export default function MainLayout({
 
   const navItems = [
     { href: '/lobby', label: 'Lobby', icon: Home },
-    { href: '/games', label: 'Games', icon: Gamepad2 },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/profile', label: 'Profile', icon: User },
   ]

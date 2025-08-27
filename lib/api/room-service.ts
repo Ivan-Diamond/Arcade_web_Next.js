@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://206.81.25.143:9991';
 
 export interface Machine {
   macNo: string;
@@ -30,12 +30,24 @@ export interface LobbyData {
 export const roomService = {
   async getLobbyData(): Promise<LobbyData | null> {
     try {
+      console.log('Room service: Calling /api/lobby');
       const response = await fetch('/api/lobby');
+      
+      console.log('Room service: API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Room service: API error:', response.status, errorText);
+        return null;
+      }
 
       const data = await response.json();
+      console.log('Room service: API response data:', data);
+      
       if (data.code === 20000) {
         return data.data;
       }
+      console.error('Room service: Unexpected response code:', data.code);
       return null;
     } catch (error) {
       console.error('Failed to fetch lobby data:', error);

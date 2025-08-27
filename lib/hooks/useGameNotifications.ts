@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { 
   GameNotification, 
   NotificationType, 
@@ -9,6 +9,9 @@ import {
   BallCountNotification,
   ScoreNotification 
 } from '@/lib/types/game-notifications'
+import { useAuthStore } from '@/lib/stores/useAuthStore'
+import { userService } from '@/lib/api/user-service'
+import { getSession } from 'next-auth/react'
 
 // Ball color mapping based on result data - 1
 const BALL_COLORS: Record<number, { name: string; color: string }> = {
@@ -24,24 +27,47 @@ const BALL_COLORS: Record<number, { name: string; color: string }> = {
   10: { name: 'Unknown', color: '#808080' },
 }
 
-export function useGameNotifications(userId: string) {
+export function useGameNotifications(userId: string, onCoinChange?: (oldBalance: number, newBalance: number) => void) {
   const [currentNotification, setCurrentNotification] = useState<GameNotification | null>(null)
   const [notificationHistory, setNotificationHistory] = useState<GameNotification[]>([])
+  const previousCoinsRef = useRef<number | null>(null)
+  const isInitializedRef = useRef(false)
 
-  const handleWawaResult = useCallback((result: any) => {
+  const { updateUser } = useAuthStore()
+  
+  // Initialize the previous coins ref on first load
+  const initializeCoins = useCallback(async () => {
+    if (!isInitializedRef.current) {
+      try {
+        const session = await getSession()
+        if (session?.jwt) {
+          const refreshResult = await userService.refreshUserData(session.jwt as string)
+          if (refreshResult.success && refreshResult.data) {
+            previousCoinsRef.current = refreshResult.data.coins
+            isInitializedRef.current = true
+            updateUser({ coins: refreshResult.data.coins })
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize coins:', error)
+      }
+    }
+  }, [updateUser])
+  
+  const handleWawaResult = useCallback(async (result: any) => {
     console.log('WawaResult received:', result)
     
-    // result.data: 0 = failure, 1+ = success with ball color
-    // Ball color = data - 1 (when data > 1)
+    // Determine if the player won (data >= 1 means success)
     const isWin = result.data >= 1
-    let ballColor = undefined
     
+    // Extract ball color if available and valid
+    let ballColor = undefined
     if (isWin && result.data > 1) {
       const colorIndex = result.data - 1
-      ballColor = BALL_COLORS[colorIndex] || BALL_COLORS[10] // Default to Unknown
-    } else if (isWin && result.data === 1) {
-      // Win but no color info, default to Unknown
-      ballColor = BALL_COLORS[10]
+      // Only set color if it's in the valid range (1-9, excluding 10 which is "Unknown")
+      if (colorIndex >= 1 && colorIndex <= 9) {
+        ballColor = BALL_COLORS[colorIndex]
+      }
     }
     
     const notification: WawaResultNotification = {
@@ -54,7 +80,35 @@ export function useGameNotifications(userId: string) {
     
     setCurrentNotification(notification)
     setNotificationHistory(prev => [...prev, notification])
-  }, [userId])
+    
+    // Fetch updated user data including coins after game result
+    try {
+      const session = await getSession()
+      if (session?.jwt) {
+        const refreshResult = await userService.refreshUserData(session.jwt as string)
+        if (refreshResult.success && refreshResult.data) {
+          console.log('Updated coins from server:', refreshResult.data.coins)
+          const newCoins = refreshResult.data.coins
+          const oldCoins = previousCoinsRef.current
+          
+          // Only show notification if:
+          // 1. We have been initialized (not the first load)
+          // 2. We have a previous value to compare
+          // 3. The value actually changed
+          if (isInitializedRef.current && oldCoins !== null && onCoinChange && oldCoins !== newCoins) {
+            onCoinChange(oldCoins, newCoins)
+          }
+          
+          // Mark as initialized and update reference
+          isInitializedRef.current = true
+          previousCoinsRef.current = newCoins
+          updateUser({ coins: newCoins })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error)
+    }
+  }, [userId, updateUser, onCoinChange])
 
   const handleGameResult = useCallback((result: any) => {
     console.log('GameResult received:', result)
@@ -103,6 +157,38 @@ export function useGameNotifications(userId: string) {
     setNotificationHistory(prev => [...prev, notification])
   }, [userId])
 
+  const handleGameStart = useCallback(async (result: any) => {
+    console.log('Game start received:', result)
+    
+    // Refresh coin balance when game starts (deduct coins for playing)
+    try {
+      const session = await getSession()
+      if (session?.jwt) {
+        const refreshResult = await userService.refreshUserData(session.jwt as string)
+        if (refreshResult.success && refreshResult.data) {
+          console.log('Updated coins after game start:', refreshResult.data.coins)
+          const newCoins = refreshResult.data.coins
+          const oldCoins = previousCoinsRef.current
+          
+          // Only show notification if:
+          // 1. We have been initialized (not the first load)
+          // 2. We have a previous value to compare
+          // 3. The value actually changed
+          if (isInitializedRef.current && oldCoins !== null && onCoinChange && oldCoins !== newCoins) {
+            onCoinChange(oldCoins, newCoins)
+          }
+          
+          // Mark as initialized and update reference
+          isInitializedRef.current = true
+          previousCoinsRef.current = newCoins
+          updateUser({ coins: newCoins })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data on game start:', error)
+    }
+  }, [updateUser, onCoinChange])
+
   const clearCurrentNotification = useCallback(() => {
     setCurrentNotification(null)
   }, [])
@@ -118,7 +204,9 @@ export function useGameNotifications(userId: string) {
     handleGameResult,
     handleBallCount,
     handleScore,
+    handleGameStart,
     clearCurrentNotification,
-    clearHistory
+    clearHistory,
+    initializeCoins
   }
 }

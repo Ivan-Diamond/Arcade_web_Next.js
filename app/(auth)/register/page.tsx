@@ -39,7 +39,7 @@ export default function RegisterPage() {
       
       // Call the registration API
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/v1/customer_register?username=${formData.username}&password=${passwordHash}&phoneNumber=${formData.phoneNumber || ''}`,
+        `http://206.81.25.143:9991/v1/customer_register?username=${formData.username}&password=${passwordHash}&phoneNumber=${formData.phoneNumber || ''}`,
         {
           method: 'POST',
           headers: {

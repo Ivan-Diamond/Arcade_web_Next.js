@@ -2,39 +2,45 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { User, Trophy, Coins, Target, TrendingUp, Calendar, Award, Gamepad2 } from 'lucide-react'
-import Image from 'next/image'
+import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { useAuthStore } from '@/lib/stores/useAuthStore'
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<'stats' | 'history' | 'achievements'>('stats')
+  const { data: session } = useSession()
+  const { user: authUser } = useAuthStore()
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats'>('overview')
 
-  // Mock user data
+  // Use real user data from session
   const user = {
-    id: '1',
-    username: 'CyberPlayer',
-    avatar: '',
-    coins: 1250,
-    wins: 42,
-    gamesPlayed: 156,
-    winRate: 26.9,
-    joinDate: '2024-01-15',
-    level: 12,
-    nextLevelProgress: 65,
+    id: authUser?.id || session?.user?.id || '',
+    username: authUser?.username || session?.user?.username || 'Player',
+    coins: authUser?.coins || 0,
+    wins: authUser?.wins || 0,
+    gamesPlayed: authUser?.gamesPlayed || 0,
+    winRate: authUser?.winRate || 0,
+    level: authUser?.level || 1,
   }
 
-  const recentGames = [
-    { id: '1', machine: 'Neon Crane Master', result: 'win', coins: 50, date: '2024-12-20' },
-    { id: '2', machine: 'Cyber Claw Extreme', result: 'lose', coins: -20, date: '2024-12-19' },
-    { id: '3', machine: 'Lucky Fortune', result: 'win', coins: 75, date: '2024-12-19' },
-    { id: '4', machine: 'Retro Arcade', result: 'lose', coins: -10, date: '2024-12-18' },
-  ]
+  const handleLogout = () => {
+    // TODO: Implement logout
+    console.log('Logout clicked')
+  }
 
-  const achievements = [
-    { id: '1', name: 'First Win', description: 'Win your first game', icon: Trophy, unlocked: true, color: 'cyan' },
-    { id: '2', name: 'Coin Master', description: 'Earn 1000 coins', icon: Coins, unlocked: true, color: 'yellow' },
-    { id: '3', name: 'Sharpshooter', description: 'Win 5 games in a row', icon: Target, unlocked: false, color: 'purple' },
-    { id: '4', name: 'Veteran', description: 'Play 100 games', icon: Award, unlocked: true, color: 'green' },
-  ]
+  const handleChangeName = () => {
+    // TODO: Implement name change
+    console.log('Change name clicked')
+  }
+
+  const handleFeedback = () => {
+    // TODO: Implement feedback
+    console.log('Feedback clicked')
+  }
+
+  const handleHistory = () => {
+    // TODO: Implement history
+    console.log('History clicked')
+  }
 
   return (
     <div className="min-h-screen p-6">
@@ -60,11 +66,7 @@ export default function ProfilePage() {
           <div className="relative">
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-neon-cyan via-neon-purple to-neon-pink p-1">
               <div className="w-full h-full rounded-full bg-dark-card flex items-center justify-center">
-                {user.avatar ? (
-                  <Image src={user.avatar} alt={user.username} width={120} height={120} className="rounded-full" />
-                ) : (
-                  <User className="w-16 h-16 text-neon-cyan" />
-                )}
+                <User className="w-16 h-16 text-neon-cyan" />
               </div>
             </div>
             <div className="absolute bottom-0 right-0 bg-dark-card border-2 border-neon-cyan rounded-full px-2 py-1">
@@ -75,25 +77,13 @@ export default function ProfilePage() {
           {/* User Info */}
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-bold mb-2">{user.username}</h2>
-            <p className="text-gray-400 mb-4">Member since {new Date(user.joinDate).toLocaleDateString()}</p>
-            
-            {/* Level Progress */}
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-400">Level {user.level}</span>
-                <span className="text-gray-400">{user.nextLevelProgress}%</span>
-              </div>
-              <div className="w-full h-2 bg-dark-surface rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-neon-cyan to-neon-purple transition-all duration-500"
-                  style={{ width: `${user.nextLevelProgress}%` }}
-                />
-              </div>
+            <div className="flex items-center gap-2 justify-center md:justify-start mb-4">
+              <Coins className="w-5 h-5 text-yellow-500" />
+              <span className="text-xl font-semibold">{user.coins} coins</span>
             </div>
-
+            
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatItem icon={<Coins />} value={user.coins} label="Coins" color="yellow" />
+            <div className="grid grid-cols-3 gap-4">
               <StatItem icon={<Trophy />} value={user.wins} label="Wins" color="cyan" />
               <StatItem icon={<Gamepad2 />} value={user.gamesPlayed} label="Games" color="purple" />
               <StatItem icon={<TrendingUp />} value={`${user.winRate}%`} label="Win Rate" color="green" />
@@ -102,15 +92,55 @@ export default function ProfilePage() {
         </div>
       </motion.div>
 
+      {/* Action Buttons */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+      >
+        <button
+          onClick={handleLogout}
+          className="card-neon border-red-500 hover:bg-red-500/10 flex flex-col items-center justify-center p-4 transition-all"
+        >
+          <LogOut className="w-6 h-6 text-red-500 mb-2" />
+          <span className="text-sm font-semibold">Logout</span>
+        </button>
+        
+        <button
+          onClick={handleChangeName}
+          className="card-neon border-neon-cyan hover:bg-neon-cyan/10 flex flex-col items-center justify-center p-4 transition-all"
+        >
+          <Edit className="w-6 h-6 text-neon-cyan mb-2" />
+          <span className="text-sm font-semibold">Change Name</span>
+        </button>
+        
+        <button
+          onClick={handleFeedback}
+          className="card-neon border-neon-purple hover:bg-neon-purple/10 flex flex-col items-center justify-center p-4 transition-all"
+        >
+          <MessageSquare className="w-6 h-6 text-neon-purple mb-2" />
+          <span className="text-sm font-semibold">Feedback</span>
+        </button>
+        
+        <button
+          onClick={handleHistory}
+          className="card-neon border-neon-green hover:bg-neon-green/10 flex flex-col items-center justify-center p-4 transition-all"
+        >
+          <History className="w-6 h-6 text-neon-green mb-2" />
+          <span className="text-sm font-semibold">History</span>
+        </button>
+      </motion.div>
+
       {/* Tabs */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         className="mb-6"
       >
         <div className="flex gap-2">
-          {(['stats', 'history', 'achievements'] as const).map((tab) => (
+          {(['overview', 'stats'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -133,104 +163,50 @@ export default function ProfilePage() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {activeTab === 'stats' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <DetailedStatCard title="Performance" icon={<TrendingUp />} color="cyan">
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DetailedStatCard title="Current Balance" icon={<Coins />} color="yellow">
+              <div className="space-y-3">
+                <div className="text-3xl font-bold text-yellow-500">
+                  {user.coins} coins
+                </div>
+                <p className="text-sm text-gray-400">Use coins to play games</p>
+              </div>
+            </DetailedStatCard>
+            
+            <DetailedStatCard title="Performance" icon={<Trophy />} color="cyan">
               <div className="space-y-3">
                 <StatRow label="Total Wins" value={user.wins} />
                 <StatRow label="Total Games" value={user.gamesPlayed} />
                 <StatRow label="Win Rate" value={`${user.winRate}%`} />
-                <StatRow label="Best Streak" value="7 wins" />
-              </div>
-            </DetailedStatCard>
-            
-            <DetailedStatCard title="Economy" icon={<Coins />} color="yellow">
-              <div className="space-y-3">
-                <StatRow label="Current Balance" value={`${user.coins} coins`} />
-                <StatRow label="Total Earned" value="5,420 coins" />
-                <StatRow label="Total Spent" value="4,170 coins" />
-                <StatRow label="Avg. per Game" value="35 coins" />
-              </div>
-            </DetailedStatCard>
-            
-            <DetailedStatCard title="Activity" icon={<Calendar />} color="purple">
-              <div className="space-y-3">
-                <StatRow label="Days Active" value="45 days" />
-                <StatRow label="Games Today" value="3" />
-                <StatRow label="Best Day" value="12 games" />
-                <StatRow label="Current Streak" value="5 days" />
               </div>
             </DetailedStatCard>
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <div className="space-y-4">
-            {recentGames.map((game) => (
-              <motion.div
-                key={game.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="card-neon flex items-center justify-between p-4"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${
-                    game.result === 'win' ? 'bg-green-500/20 text-neon-green' : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    <Trophy className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{game.machine}</p>
-                    <p className="text-sm text-gray-400">{game.date}</p>
-                  </div>
-                </div>
-                <div className={`font-bold ${
-                  game.coins > 0 ? 'text-neon-green' : 'text-red-400'
-                }`}>
-                  {game.coins > 0 ? '+' : ''}{game.coins} coins
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'achievements' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {achievements.map((achievement) => {
-              const Icon = achievement.icon
-              const colorClasses = {
-                cyan: 'text-neon-cyan border-neon-cyan',
-                yellow: 'text-yellow-500 border-yellow-500',
-                purple: 'text-neon-purple border-neon-purple',
-                green: 'text-neon-green border-neon-green',
-              }
-              return (
-                <motion.div
-                  key={achievement.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`card-neon border-2 ${
-                    achievement.unlocked 
-                      ? colorClasses[achievement.color as keyof typeof colorClasses]
-                      : 'border-gray-600 opacity-50'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-lg ${
-                      achievement.unlocked 
-                        ? `bg-${achievement.color}-500/20` 
-                        : 'bg-gray-700/20'
-                    }`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">{achievement.name}</h3>
-                      <p className="text-sm text-gray-400">{achievement.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
+        {activeTab === 'stats' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <DetailedStatCard title="Games" icon={<Gamepad2 />} color="purple">
+              <div className="space-y-3">
+                <StatRow label="Total Played" value={user.gamesPlayed} />
+                <StatRow label="Total Won" value={user.wins} />
+                <StatRow label="Win Rate" value={`${user.winRate}%`} />
+              </div>
+            </DetailedStatCard>
+            
+            <DetailedStatCard title="Level" icon={<TrendingUp />} color="cyan">
+              <div className="space-y-3">
+                <div className="text-2xl font-bold text-neon-cyan">Level {user.level}</div>
+                <p className="text-sm text-gray-400">Keep playing to level up!</p>
+              </div>
+            </DetailedStatCard>
+            
+            <DetailedStatCard title="Coins" icon={<Coins />} color="yellow">
+              <div className="space-y-3">
+                <div className="text-2xl font-bold text-yellow-500">{user.coins}</div>
+                <p className="text-sm text-gray-400">Current balance</p>
+              </div>
+            </DetailedStatCard>
           </div>
         )}
       </motion.div>
