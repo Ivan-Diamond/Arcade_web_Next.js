@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+message DataPackage{
+     PackageType packageType = 1;
+     oneof Package{
+          LoginMessage loginMessage = 2;
+          SendMessageToRoomMate sendMessageToRoomMate = 3;
+         StartGameMessage startGameMessage = 4;
+         ArmMoveMessage armMoveMessage = 5;
+         HeartMessage heartMessage = 6;
+         GameResultMessage gameResultMessage = 7;
+       BallCountMessage ballCountMessage = 8;
+         ScoreMessage scoreMessage = 9;
+         EnterRoomMessage enterRoomMessage = 10;
+         ExitRoomMessage exitRoomMessage = 11;
+         NumberOfPeopleInTheRoomMessage numberOfPeopleInTheRoomMessage =12;
+         WawaMoveMessage wawaMoveMessage= 13;
+         WawaResultMessage wawaResultMessage=14;
+     }
+}
+
+enum PackageType{
+     LOGIN = 0;
+    SENDMESSAGETOROOMMATE = 1;
+    STARTGAMEMESSAGE = 2;
+    ARMMOVEMESSAGE = 3;
+    HEARTMESSAGE = 4;
+    GAMERESULTMESSAGE = 5;
+    BALLCOUNTMESSAGE =6;
+    SCOREMESSAGE = 7;
+    ENTERROOMMESSAGE = 8;
+    EXITROOMMESSAGE = 9;
+    NUMBEROfPEOPLEINTHEROOMMESSAGE = 10;
+    WAWAMOVEMESSAGE=11;
+    WAWARESULTMESSAGE=12;
+
+}
+//调用socket登录接口，获取临时密码
+message LoginMessage {
+      
+     // ID  
+  int64 userID = 1;
+      
+    // 临时密码
+    string tempPasswd = 2;
+
+    bool isServerSide = 3; //是否是服务器端
+
+    bool loginResult =4;   //1登录成功
+
+  
+}
+//发群信息
+message SendMessageToRoomMate{
+
+     // ID
+     int64 senderUserID = 1;
+     // 临时密码
+    string roomID = 2; //roomID等于macNo
+
+     string msgData = 3; //群信息
+
+  string senderUserName = 4;
+}
+
+//开局指令
+message StartGameMessage {
+
+  // ID
+  int64 userID = 1;
+
+  // 设备
+  string macNo = 2;
+
+  bool isServerSide = 3; //是否是服务器端
+
+  int32 startGameResult = 4;   //1登录成功 失败-1 //0是表示指令发出去了
+
+  string des = 5; // 附带文字
+
+  int32 ballCount = 6;  //开局成功带得球数 小于0不处理
+
+  int64 totalGold = 7; //开局成功返回的总金币数 小于0不处理
+
+  int64 totalScore = 8; //开局成功返回的总积分数 小于0不处理
+
+  int32 gameDuring = 9; //游戏时间单位秒，娃娃机、推币机才有
+}
+
+/**
+控制手臂  data == 0时左手臂动作  data == 1时右手臂动作
+ */
+message ArmMoveMessage {
+
+  // ID
+  int64 userID = 1;
+
+  // 设备
+  string macNo = 2;
+
+    int32  data = 3;
+}
+/**
+心跳
+ */
+message HeartMessage {
+
+  // ID
+  int64 userID = 1;
+
+}
+/**
+游戏结束，从服务器返回结果
+ */
+message GameResultMessage {
+
+  // ID
+  int64 userID = 1;
+
+  // 设备
+  string macNo = 2;
+
+  int32 gameFinishFlag =3; //标识游戏结果 1 正常结束 -1 非正常结束游戏
+  int64 totalGold = 4; //开局成功返回的总金币数 小于0不处理
+
+  int64 totalScore = 5; //开局成功返回的总积分数 小于0不处理
+
+}
+
+/**
+剩余球数
+ */
+message BallCountMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int32 ballCount = 3;
+
+}
+
+/**
+分数
+ */
+message ScoreMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int32 score = 3;  //单次赢得的分数
+  int64 inCome = 4; //总共赢得的分数
+}
+
+/*
+进入游戏房间指令   服务器需回复 ,客户端需要获取总金币和总积分
+ */
+message EnterRoomMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int64 totalGold = 3; //进入房间返回的总金币数 小于0不处理
+  int64 totalScore = 4; //进入房间返回的总积分数 小于0不处理
+  bool isServerSide = 5; //是否是服务器端
+  string webrtcClientID = 6;  //srs webrtc ClientID
+  bool isMeOperation = 7; //是否是自己在操作,如果是,就显示操作按钮
+  int32 playTimes=8;
+}
+
+/**
+* 谁退出了房间, 服务器无需回复
+ */
+message ExitRoomMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  bool isServerSide = 3; //是否是服务器端
+  string webrtcClientID = 4;  //srs webrtc ClientID
+}
+/**
+房间人数
+ */
+message NumberOfPeopleInTheRoomMessage{
+  string macNo = 1;
+  int32 numberOfPeopleInTheRoom = 2;
+
+}
+
+//娃娃机移动
+message WawaMoveMessage {
+
+  // ID
+  int64 userID = 1;
+
+  // 设备
+  string macNo = 2;
+
+  int32  data = 3;  //0是上 1是下 2是左 3是右 4是下抓
+}
+//抓娃娃结果
+message WawaResultMessage {
+
+  // ID
+  int64 userID = 1;
+
+  // 设备
+  string macNo = 2;
+
+  int32  data = 3;  //0是没抓到娃娃 1是抓到了娃娃
+}

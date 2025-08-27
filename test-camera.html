@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Camera Server Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+        button { padding: 10px; margin: 5px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer; }
+        button:hover { background: #444; }
+        video { width: 400px; height: 300px; background: #000; border: 1px solid #0f0; margin: 10px; }
+        .log { background: #000; padding: 10px; height: 300px; overflow-y: scroll; border: 1px solid #0f0; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>Direct Camera Server Connection Test</h1>
+    
+    <div>
+        <input type="text" id="rtmpUrl" placeholder="Enter RTMP URL (e.g. rtmp://206.81.25.143:1935/live/104_0)" style="width: 500px; padding: 5px;">
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="testAllServers()">Test All Servers</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div style="display: flex; margin-top: 20px;">
+        <video id="videoElement" autoplay playsinline muted></video>
+        <div id="log" class="log" style="flex: 1; margin-left: 10px;"></div>
+    </div>
+
+    <script>
+        let pc = null;
+        
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<div class="${className}">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        async function testConnection() {
+            const rtmpUrl = document.getElementById('rtmpUrl').value;
+            if (!rtmpUrl) {
+                log('Please enter an RTMP URL', 'error');
+                return;
+            }
+            
+            log('Testing: ' + rtmpUrl);
+            
+            // Parse the RTMP URL
+            const match = rtmpUrl.match(/rtmp:\/\/([^:\/]+)(:\d+)?(.+)/);
+            if (!match) {
+                log('Invalid RTMP URL format', 'error');
+                return;
+            }
+            
+            const cameraIP = match[1];
+            const path = match[3];
+            
+            log('Camera Server IP: ' + cameraIP);
+            log('Stream Path: ' + path);
+            
+            // WebRTC signaling URL - directly to camera server
+            const signalingUrl = `http://${cameraIP}:1985/rtc/v1/play/`;
+            const streamUrl = `webrtc://${cameraIP}${path}`;
+            
+            log('Signaling URL: ' + signalingUrl);
+            log('Stream URL: ' + streamUrl);
+            
+            try {
+                // Clean up existing connection
+                if (pc) {
+                    pc.close();
+                }
+                
+                // Create peer connection
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // Add transceivers for receive-only
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                
+                // Handle incoming tracks
+                pc.ontrack = function(event) {
+                    log('Track received: ' + event.track.kind, 'success');
+                    if (event.streams && event.streams[0]) {
+                        document.getElementById('videoElement').srcObject = event.streams[0];
+                        log('Video stream attached!', 'success');
+                    }
+                };
+                
+                pc.oniceconnectionstatechange = function() {
+                    log('ICE State: ' + pc.iceConnectionState);
+                };
+                
+                // Create offer
+                const offer = await pc.createOffer();
+                
+                // Fix SDP profile for compatibility
+                offer.sdp = offer.sdp.replace('profile-level-id=640c1f', 'profile-level-id=42e032');
+                
+                await pc.setLocalDescription(offer);
+                
+                // Send offer to signaling server
+                log('Sending offer to signaling server...');
+                
+                const response = await fetch(signalingUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api: signalingUrl,
+                        streamurl: streamUrl,
+                        sdp: offer.sdp
+                    })
+                });
+                
+                log('Response status: ' + response.status);
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    log('Server error: ' + text, 'error');
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.sdp) {
+                    log('SDP answer received', 'success');
+                    const answer = new RTCSessionDescription({
+                        type: 'answer',
+                        sdp: result.sdp
+                    });
+                    await pc.setRemoteDescription(answer);
+                    log('WebRTC connection established!', 'success');
+                } else {
+                    log('No SDP in response: ' + JSON.stringify(result), 'error');
+                }
+                
+            } catch (error) {
+                log('Error: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+        
+        // Test different server types
+        function testAllServers() {
+            const serverTests = [
+                'rtmp://206.81.25.143:1935/live/104_0',
+                'rtmp://46.101.131.181:1935/live/201_0', 
+                'rtmp://www.xbdoll.cn:1935/live/301_0',
+                'rtmp://104.248.143.207:1935/live/401_0'
+            ];
+            
+            log('Testing all known server types...', 'info');
+            
+            serverTests.forEach(async (url, index) => {
+                setTimeout(async () => {
+                    log(`--- Testing Server ${index + 1}: ${url} ---`);
+                    document.getElementById('rtmpUrl').value = url;
+                    await testConnection();
+                }, index * 5000); // 5 second delay between tests
+            });
+        }
+        
+        // Test with a default URL
+        window.onload = function() {
+            document.getElementById('rtmpUrl').value = 'rtmp://206.81.25.143:1935/live/104_0';
+        };
+    </script>
+</body>
+</html>

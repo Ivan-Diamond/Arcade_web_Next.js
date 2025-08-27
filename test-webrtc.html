@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        #log { background: #000; padding: 10px; margin-top: 20px; border: 1px solid #333; height: 400px; overflow-y: auto; }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+        video { width: 640px; height: 480px; background: #000; border: 2px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Signaling Test</h1>
+    
+    <div>
+        <label>RTMP URL: <input id="rtmpUrl" type="text" value="rtmp://206.81.25.143:1935/live/104_0" style="width: 400px;"></label>
+    </div>
+    
+    <div>
+        <button onclick="testDirectConnection()">Test Direct Connection (Port 1985)</button>
+        <button onclick="testProxiedConnection()">Test Proxied Connection (/rtc/v1/play/)</button>
+        <button onclick="testFullWebRTC()">Test Full WebRTC Stream</button>
+    </div>
+    
+    <video id="video" autoplay playsinline muted></video>
+    
+    <div id="log"></div>
+
+    <script>
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function createOffer() {
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            
+            // Add transceivers for receive-only
+            pc.addTransceiver('audio', { direction: 'recvonly' });
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            
+            const offer = await pc.createOffer();
+            
+            // Fix SDP profile level
+            offer.sdp = offer.sdp.replace('profile-level-id=640c1f', 'profile-level-id=42e032');
+            
+            await pc.setLocalDescription(offer);
+            
+            return { pc, offer };
+        }
+
+        async function testDirectConnection() {
+            try {
+                log('Testing direct connection to port 1985...', 'info');
+                
+                const rtmpUrl = document.getElementById('rtmpUrl').value;
+                const url = new URL(rtmpUrl);
+                
+                const api = `http://${url.hostname}:1985/rtc/v1/play/`;
+                const streamUrl = `webrtc://${url.hostname}${url.pathname}`;
+                
+                log(`API: ${api}`, 'info');
+                log(`Stream URL: ${streamUrl}`, 'info');
+                
+                const { offer } = await createOffer();
+                
+                const data = {
+                    api: api,
+                    streamurl: streamUrl,
+                    sdp: offer.sdp
+                };
+                
+                log('Sending request...', 'info');
+                
+                const response = await fetch(api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    log(`Success! Response: ${result.substring(0, 200)}...`, 'success');
+                    const json = JSON.parse(result);
+                    if (json.sdp) {
+                        log('SDP answer received successfully', 'success');
+                    }
+                } else {
+                    log(`Failed: ${response.status} - ${result}`, 'error');
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testProxiedConnection() {
+            try {
+                log('Testing proxied connection through /rtc/v1/play/...', 'info');
+                
+                const rtmpUrl = document.getElementById('rtmpUrl').value;
+                const url = new URL(rtmpUrl);
+                
+                // Use current host for proxy
+                const api = `${window.location.origin}/rtc/v1/play/`;
+                const streamUrl = `webrtc://${url.hostname}${url.pathname}`;
+                
+                log(`API: ${api}`, 'info');
+                log(`Stream URL: ${streamUrl}`, 'info');
+                
+                const { offer } = await createOffer();
+                
+                const data = {
+                    api: `http://${url.hostname}:1985/rtc/v1/play/`,
+                    streamurl: streamUrl,
+                    sdp: offer.sdp
+                };
+                
+                log('Sending request...', 'info');
+                
+                const response = await fetch(api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    log(`Success! Response: ${result.substring(0, 200)}...`, 'success');
+                    const json = JSON.parse(result);
+                    if (json.sdp) {
+                        log('SDP answer received successfully', 'success');
+                    }
+                } else {
+                    log(`Failed: ${response.status} - ${result}`, 'error');
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testFullWebRTC() {
+            try {
+                log('Testing full WebRTC stream connection...', 'info');
+                
+                const rtmpUrl = document.getElementById('rtmpUrl').value;
+                const url = new URL(rtmpUrl);
+                
+                const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const api = isLocalDev 
+                    ? `http://${url.hostname}:1985/rtc/v1/play/`
+                    : `${window.location.origin}/rtc/v1/play/`;
+                    
+                const streamUrl = `webrtc://${url.hostname}${url.pathname}`;
+                
+                log(`API: ${api}`, 'info');
+                log(`Stream URL: ${streamUrl}`, 'info');
+                
+                const { pc, offer } = await createOffer();
+                
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        log(`ICE candidate: ${event.candidate.candidate}`, 'info');
+                    }
+                };
+                
+                pc.ontrack = (event) => {
+                    log(`Track received: ${event.track.kind}`, 'success');
+                    const video = document.getElementById('video');
+                    if (event.streams && event.streams[0]) {
+                        video.srcObject = event.streams[0];
+                        log('Video stream attached to element', 'success');
+                    }
+                };
+                
+                const data = {
+                    api: isLocalDev ? api : `http://${url.hostname}:1985/rtc/v1/play/`,
+                    streamurl: streamUrl,
+                    sdp: offer.sdp
+                };
+                
+                log('Sending signaling request...', 'info');
+                
+                const response = await fetch(api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    const json = JSON.parse(result);
+                    if (json.sdp) {
+                        log('Setting remote description...', 'info');
+                        const answer = new RTCSessionDescription({ type: 'answer', sdp: json.sdp });
+                        await pc.setRemoteDescription(answer);
+                        log('WebRTC connection established!', 'success');
+                    }
+                } else {
+                    log(`Failed: ${response.status} - ${result}`, 'error');
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+                console.error(e);
+            }
+        }
+        
+        // Test with a known camera URL on load
+        window.onload = () => {
+            log('WebRTC Test Page Ready', 'info');
+            log('Default test URL: rtmp://206.81.25.143:1935/live/104_0', 'info');
+        };
+    </script>
+</body>
+</html>
