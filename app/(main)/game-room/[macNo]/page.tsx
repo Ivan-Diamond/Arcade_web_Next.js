@@ -122,7 +122,7 @@ export default function GameRoomPage() {
     fetchMachineData()
   }, [session, macNo])
 
-  // Game timer countdown
+  // Game timer countdown - both timeRemaining and gameTimer
   useEffect(() => {
     if (gameStatus === 'playing' && gameTimer > 0) {
       const interval = setInterval(() => {
@@ -134,6 +134,7 @@ export default function GameRoomPage() {
           }
           return prev - 1
         })
+        setTimeRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
       
       return () => clearInterval(interval)
@@ -453,7 +454,7 @@ export default function GameRoomPage() {
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Coins className="w-5 h-5 text-yellow-500" />
-                    <span className="text-sm">Cost: {roomInfo?.price || 10} coins</span>
+                    <span className="text-sm">Cost: {machineData?.price || roomInfo?.price || 10} coins</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Timer className="w-5 h-5 text-neon-cyan" />
