@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { motion } from 'framer-motion'
-import { 
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
-  Circle, X, Volume2, VolumeX, Wifi, WifiOff,
-  Coins, Timer, Users
-} from 'lucide-react'
-import ProtobufSocketClient, { WawaOptEnum } from '@/lib/socket/protobuf-socket-client'
+import { Wifi, WifiOff, X, Play, Pause, RotateCcw, RotateCw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Coins, Timer, Users, Circle } from 'lucide-react'
+import { getProtobufSocketClient } from '@/lib/socket/protobuf-socket-client'
+import ProtobufSocketClient from '@/lib/socket/protobuf-socket-client'
+import { WawaOptEnum } from '@/lib/types/game-types'
+import { useGameNotifications } from '@/lib/hooks/useGameNotifications'
+import GameResultModal from '@/components/game/GameResultModal'
+import { WawaResultNotification } from '@/lib/types/game-notifications'
 import { WebRTCSignaling } from '@/lib/webrtc/signaling'
 import { roomService } from '@/lib/api/room-service'
 
@@ -24,7 +24,9 @@ export default function GameRoomPage() {
   const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'ended'>('waiting')
   const [timeRemaining, setTimeRemaining] = useState(30)
   const [roomInfo, setRoomInfo] = useState<any>(null)
-  const [playerCount, setPlayerCount] = useState(0)
+  const [playerCount, setPlayerCount] = useState(1)
+  const [gameTimer, setGameTimer] = useState(0)
+  const [isGameActive, setIsGameActive] = useState(false)
   const [currentCamera, setCurrentCamera] = useState<0 | 1>(0)
   const [machineData, setMachineData] = useState<any>(null)
   const [isVideoLoading, setIsVideoLoading] = useState(true)
@@ -32,6 +34,9 @@ export default function GameRoomPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const signalingRef = useRef<WebRTCSignaling | null>(null)
   const socketClientRef = useRef<ProtobufSocketClient | null>(null)
+  const moveIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const gameNotifications = useGameNotifications(session?.user?.id || '')
 
   // Initialize WebRTC immediately with known camera patterns
   useEffect(() => {
@@ -109,6 +114,24 @@ export default function GameRoomPage() {
     fetchMachineData()
   }, [session, macNo])
 
+  // Game timer countdown
+  useEffect(() => {
+    if (gameStatus === 'playing' && gameTimer > 0) {
+      const interval = setInterval(() => {
+        setGameTimer(prev => {
+          if (prev <= 1) {
+            setGameStatus('ended')
+            setIsGameActive(false)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [gameStatus, gameTimer])
+
   // Initialize WebSocket connection
   useEffect(() => {
     if (!session?.user?.id || !(session as any)?.socketPassword) return
@@ -131,23 +154,57 @@ export default function GameRoomPage() {
       setIsConnected(false)
     }
 
-    client.onPlayerCount = (count) => {
+    client.onPlayerCount = (count: number) => {
       setPlayerCount(count)
     }
 
-    client.onEnterRoomResult = (data) => {
+    client.onEnterRoomResult = (data: any) => {
       console.log('Enter room result:', data)
       setRoomInfo(data)
       // Don't initialize WebRTC here - it's already done with machine data
     }
 
-    client.onGameResult = (result) => {
+    client.onGameResult = (result: any) => {
       console.log('Game result:', result)
+      setIsGameActive(false)
       setGameStatus('ended')
-      // Show result message
+      gameNotifications.handleGameResult(result)
+      
+      // Reset to idle state after 3 seconds
       setTimeout(() => {
         setGameStatus('waiting')
-      }, 5000)
+        setTimeRemaining(30)
+        setGameTimer(0)
+      }, 3000)
+    }
+
+    client.onWawaResult = (result: any) => {
+      console.log('Wawa result:', result)
+      gameNotifications.handleWawaResult(result)
+      
+      // Game ends when we receive WAWARESULTMESSAGE
+      setIsGameActive(false)
+      setGameStatus('ended')
+      
+      // Clear any existing reset timeout
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current)
+      }
+      
+      // Reset to idle state after 4 seconds (allows modal to display)
+      resetTimeoutRef.current = setTimeout(() => {
+        setGameStatus('waiting')
+        setTimeRemaining(30)
+        setGameTimer(30)
+      }, 4000)
+    }
+
+    client.onBallCount = (result: any) => {
+      gameNotifications.handleBallCount(result)
+    }
+
+    client.onScore = (result: any) => {
+      gameNotifications.handleScore(result)
     }
 
     // Connect to server
@@ -226,23 +283,28 @@ export default function GameRoomPage() {
 
   const handleControl = (action: string) => {
     console.log('Control pressed:', action, { isConnected, gameStatus, hasSocket: !!socketClientRef.current })
-    if (!isConnected || !socketClientRef.current) return
+  }
+
+  const handleMove = (direction: string) => {
+    if (!socketClientRef.current || !isGameActive) return
     
     let wawaOpt: WawaOptEnum
-    switch(action) {
-      case 'UP':
-        wawaOpt = WawaOptEnum.UP
-        break
-      case 'DOWN':
+    switch (direction) {
+      case 'up':
+        // Up arrow means "back" in the claw machine
         wawaOpt = WawaOptEnum.DOWN
         break
-      case 'LEFT':
+      case 'down':
+        // Down arrow means "front" in the claw machine
+        wawaOpt = WawaOptEnum.UP
+        break
+      case 'left':
         wawaOpt = WawaOptEnum.LEFT
         break
-      case 'RIGHT':
+      case 'right':
         wawaOpt = WawaOptEnum.RIGHT
         break
-      case 'CATCH':
+      case 'grab':
         wawaOpt = WawaOptEnum.GRAB
         break
       default:
@@ -252,25 +314,53 @@ export default function GameRoomPage() {
     socketClientRef.current.sendWawaMove(wawaOpt)
   }
 
+  const startContinuousMove = (direction: string) => {
+    if (!isGameActive) return
+    
+    // Send first move immediately
+    handleMove(direction)
+    
+    // Clear any existing interval
+    if (moveIntervalRef.current) {
+      clearInterval(moveIntervalRef.current)
+    }
+    
+    // Start sending moves every 100ms
+    moveIntervalRef.current = setInterval(() => {
+      handleMove(direction)
+    }, 100)
+  }
+
+  const stopContinuousMove = () => {
+    if (moveIntervalRef.current) {
+      clearInterval(moveIntervalRef.current)
+      moveIntervalRef.current = null
+    }
+  }
+
   const handleStartGame = () => {
-    if (!socketClientRef.current || !isConnected) return
-    
     console.log('Starting game...')
-    socketClientRef.current.startGame()
-    setGameStatus('playing')
-    setTimeRemaining(30)
     
-    // Start countdown timer
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          setGameStatus('ended')
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    // Clear any pending reset timeout when starting a new game
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current)
+      resetTimeoutRef.current = null
+    }
+    
+    // Clear any existing move interval
+    if (moveIntervalRef.current) {
+      clearInterval(moveIntervalRef.current)
+      moveIntervalRef.current = null
+    }
+    
+    // Close any open notification before starting
+    gameNotifications.clearCurrentNotification()
+    
+    socketClientRef.current?.startGame()
+    setGameStatus('playing')
+    setIsGameActive(true)
+    setTimeRemaining(30)
+    setGameTimer(30)
   }
 
   const handleExitRoom = () => {
@@ -376,7 +466,11 @@ export default function GameRoomPage() {
               <div className="relative w-48 h-48 mx-auto mb-8">
                 {/* Up */}
                 <button
-                  onMouseDown={() => handleControl('DOWN')}
+                  onMouseDown={() => startContinuousMove('up')}
+                  onMouseUp={stopContinuousMove}
+                  onMouseLeave={stopContinuousMove}
+                  onTouchStart={() => startContinuousMove('up')}
+                  onTouchEnd={stopContinuousMove}
                   disabled={gameStatus !== 'playing'}
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 
                            bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
@@ -388,7 +482,11 @@ export default function GameRoomPage() {
                 
                 {/* Down */}
                 <button
-                  onMouseDown={() => handleControl('UP')}
+                  onMouseDown={() => startContinuousMove('down')}
+                  onMouseUp={stopContinuousMove}
+                  onMouseLeave={stopContinuousMove}
+                  onTouchStart={() => startContinuousMove('down')}
+                  onTouchEnd={stopContinuousMove}
                   disabled={gameStatus !== 'playing'}
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16
                            bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
@@ -400,7 +498,11 @@ export default function GameRoomPage() {
                 
                 {/* Left */}
                 <button
-                  onMouseDown={() => handleControl('LEFT')}
+                  onMouseDown={() => startContinuousMove('left')}
+                  onMouseUp={stopContinuousMove}
+                  onMouseLeave={stopContinuousMove}
+                  onTouchStart={() => startContinuousMove('left')}
+                  onTouchEnd={stopContinuousMove}
                   disabled={gameStatus !== 'playing'}
                   className="absolute left-0 top-1/2 -translate-y-1/2 w-16 h-16
                            bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
@@ -412,7 +514,11 @@ export default function GameRoomPage() {
                 
                 {/* Right */}
                 <button
-                  onMouseDown={() => handleControl('RIGHT')}
+                  onMouseDown={() => startContinuousMove('right')}
+                  onMouseUp={stopContinuousMove}
+                  onMouseLeave={stopContinuousMove}
+                  onTouchStart={() => startContinuousMove('right')}
+                  onTouchEnd={stopContinuousMove}
                   disabled={gameStatus !== 'playing'}
                   className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16
                            bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
@@ -430,7 +536,7 @@ export default function GameRoomPage() {
               
               {/* Catch Button */}
               <button
-                onMouseDown={() => handleControl('CATCH')}
+                onClick={() => handleMove('grab')}
                 disabled={gameStatus !== 'playing'}
                 className="w-full py-4 bg-gradient-to-r from-neon-pink to-neon-purple
                          hover:shadow-neon-pink disabled:opacity-50 disabled:hover:shadow-none
@@ -451,6 +557,13 @@ export default function GameRoomPage() {
           </div>
         </div>
       </div>
+
+      {/* Game Result Modal */}
+      <GameResultModal 
+        notification={gameNotifications.currentNotification as WawaResultNotification}
+        onClose={gameNotifications.clearCurrentNotification}
+        onPlayAgain={handleStartGame}
+      />
     </div>
   )
 }

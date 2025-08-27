@@ -37,13 +37,18 @@ class ProtobufSocketClient {
   private reconnectDelay = 3000
   
   // Event handlers
-  public onOpen: (() => void) | null = null
-  public onClose: (() => void) | null = null
-  public onError: ((error: Event) => void) | null = null
-  public onMessage: ((data: any) => void) | null = null
-  public onPlayerCount: ((count: number) => void) | null = null
-  public onGameResult: ((result: any) => void) | null = null
-  public onEnterRoomResult: ((data: any) => void) | null = null
+  public onOpen?: () => void
+  public onClose?: () => void
+  public onConnect?: () => void
+  public onDisconnect?: () => void
+  public onMessage?: (message: any) => void
+  public onError?: (error: any) => void
+  public onPlayerCount?: (count: number) => void
+  public onGameResult?: (result: any) => void
+  public onEnterRoomResult?: (result: any) => void
+  public onWawaResult?: (result: any) => void
+  public onBallCount?: (result: any) => void
+  public onScore?: (result: any) => void
 
   constructor() {
     this.loadProto()
@@ -120,6 +125,12 @@ class ProtobufSocketClient {
           this.onPlayerCount?.(object.numberOfPeopleInTheRoomMessage.numberOfPeopleInTheRoom)
         } else if (object.packageType === 'GAMERESULTMESSAGE' && object.gameResultMessage) {
           this.onGameResult?.(object.gameResultMessage)
+        } else if (object.packageType === 'WAWARESULTMESSAGE' && object.wawaResultMessage) {
+          this.onWawaResult?.(object.wawaResultMessage)
+        } else if (object.packageType === 'BALLCOUNTMESSAGE' && object.ballCountMessage) {
+          this.onBallCount?.(object.ballCountMessage)
+        } else if (object.packageType === 'SCOREMESSAGE' && object.scoreMessage) {
+          this.onScore?.(object.scoreMessage)
         } else if (object.packageType === 'ENTERROOMMESSAGE' && object.enterRoomMessage) {
           this.onEnterRoomResult?.(object.enterRoomMessage)
         } else if (object.packageType === 'LOGIN' && object.loginMessage) {
@@ -285,4 +296,5 @@ export function getProtobufSocketClient(): ProtobufSocketClient {
   return instance
 }
 
+export { ProtobufSocketClient }
 export default ProtobufSocketClient
