@@ -19,26 +19,28 @@ export const authOptions: NextAuthOptions = {
         const passwordHash = crypto.createHash('md5').update(credentials.password).digest('hex')
         
         try {
-          // Call the backend login endpoint with form data
-          const formData = new URLSearchParams()
-          formData.append('username', credentials.username)
-          formData.append('password', passwordHash)
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msaarcade.com/game/uaa'
           
-          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://206.81.25.143:9991'
+          // Send as URL-encoded form data (application/x-www-form-urlencoded)
+          const params = new URLSearchParams()
+          params.append('username', credentials.username)
+          params.append('password', passwordHash)
+          
+          const url = `${API_BASE_URL}/oauth/customer_login`
           
           console.log('Login request:', {
-            url: `${API_BASE_URL}/oauth/customer_login`,
+            url: url,
             username: credentials.username,
             passwordHash: passwordHash.substring(0, 8) + '...',
-            formData: formData.toString()
+            body: params.toString()
           })
           
-          const response = await fetch(`${API_BASE_URL}/oauth/customer_login`, {
+          const response = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: formData,
+            body: params.toString(),
           })
 
           console.log('Login response:', {
