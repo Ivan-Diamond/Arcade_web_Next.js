@@ -16,6 +16,7 @@ message DataPackage{
          NumberOfPeopleInTheRoomMessage numberOfPeopleInTheRoomMessage =12;
          WawaMoveMessage wawaMoveMessage= 13;
          WawaResultMessage wawaResultMessage=14;
+         PlayGameOrder playGameOrder=15;
      }
 }
 
@@ -33,7 +34,7 @@ enum PackageType{
     NUMBEROfPEOPLEINTHEROOMMESSAGE = 10;
     WAWAMOVEMESSAGE=11;
     WAWARESULTMESSAGE=12;
-
+    PLAYGAMEORDER=13;
 }
 //调用socket登录接口，获取临时密码
 message LoginMessage {
@@ -200,4 +201,16 @@ message WawaResultMessage {
   string macNo = 2;
 
   int32  data = 3;  //0是没抓到娃娃 1是抓到了娃娃
+}
+
+//游戏顺序指令
+message PlayGameOrder {
+  // ID
+  int64 userID = 1;
+  
+  // 设备
+  string macNo = 2;
+  
+  // 游戏顺序
+  int32 order = 3;
 }

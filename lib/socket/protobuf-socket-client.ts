@@ -22,6 +22,7 @@ export enum PackageType {
   NUMBEROfPEOPLEINTHEROOMMESSAGE = 10,
   WAWAMOVEMESSAGE = 11,
   WAWARESULTMESSAGE = 12,
+  PLAYGAMEORDER = 13,
 }
 
 class ProtobufSocketClient {
@@ -41,14 +42,17 @@ class ProtobufSocketClient {
   public onClose?: () => void
   public onConnect?: () => void
   public onDisconnect?: () => void
-  public onMessage?: (message: any) => void
-  public onError?: (error: any) => void
+  public onQueueUpdate?: (playGameOrder: any) => void
+  public onRoomMessage?: (message: any) => void
+  public onMessage?: (data: any) => void
   public onPlayerCount?: (count: number) => void
   public onGameResult?: (result: any) => void
   public onEnterRoomResult?: (result: any) => void
   public onWawaResult?: (result: any) => void
   public onBallCount?: (result: any) => void
   public onScore?: (result: any) => void
+  public onStartGameResult?: (result: any) => void
+  public onError?: (error: any) => void
 
   constructor() {
     this.loadProto()
@@ -136,9 +140,25 @@ class ProtobufSocketClient {
         } else if (object.packageType === 'LOGIN' && object.loginMessage) {
           if (object.loginMessage.loginResult) {
             console.log('Login successful')
+            // Automatically enter room after successful login
+            if (this.macNo) {
+              this.enterRoom(this.macNo)
+            }
           } else {
             console.error('Login failed')
           }
+        } else if (object.packageType === 'STARTGAMEMESSAGE' && object.startGameMessage) {
+          // Handle start game response from server
+          console.log('Start game response:', object.startGameMessage)
+          this.onStartGameResult?.(object.startGameMessage)
+        } else if (object.packageType === 'PLAYGAMEORDER' && object.playGameOrder) {
+          // Handle queue position update from server
+          console.log('Queue position update:', object.playGameOrder)
+          this.onQueueUpdate?.(object.playGameOrder)
+        } else if (object.packageType === 'SENDMESSAGETOROOMMATE' && object.sendMessageToRoomMate) {
+          // Handle inter-player messages
+          console.log('Room message:', object.sendMessageToRoomMate)
+          this.onRoomMessage?.(object.sendMessageToRoomMate)
         }
         
         this.onMessage?.(object)
@@ -270,6 +290,36 @@ class ProtobufSocketClient {
   private sendHeartbeat() {
     this.sendMessage(PackageType.HEARTMESSAGE, 'heartMessage', {
       userID: this.userId,
+    })
+  }
+
+  public joinQueue(macNo: string) {
+    if (!macNo) {
+      console.error('No machine specified for queue')
+      return
+    }
+
+    console.log('Joining queue for machine:', macNo)
+    this.sendMessage(PackageType.PLAYGAMEORDER, 'playGameOrder', {
+      userID: this.userId,
+      macNo: macNo,
+      order: 0, // Order will be assigned by server
+    })
+  }
+
+  public leaveQueue(macNo: string) {
+    if (!macNo) {
+      console.error('No machine specified for leaving queue')
+      return
+    }
+
+    console.log('Leaving queue for machine:', macNo)
+    // Send a negative order or specific value to indicate leaving queue
+    // The server should interpret this as a leave queue request
+    this.sendMessage(PackageType.PLAYGAMEORDER, 'playGameOrder', {
+      userID: this.userId,
+      macNo: macNo,
+      order: -1, // -1 indicates leaving queue
     })
   }
 

@@ -97,34 +97,19 @@ export class WebRTCSignaling {
     console.log('Signaling URL:', signalingUrl)
     console.log('Stream URL:', streamUrl)
 
-    // Try direct connection first (works in many browsers)
-    let response: Response
-    try {
-      console.log('Attempting direct connection to camera server...')
-      response = await fetch(signalingUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          api: signalingUrl,
-          streamurl: streamUrl,
-          sdp: offer.sdp,
-        }),
-      })
-      console.log('Direct connection successful!')
-    } catch (error) {
-      console.log('Direct connection failed, using proxy...', error)
-      // Fallback to proxy if direct connection fails
-      response = await fetch('/api/webrtc/signaling', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cameraServerIP: cameraServerIP,
-          api: signalingUrl,
-          streamurl: streamUrl,
-          sdp: offer.sdp,
-        }),
-      })
-    }
+    // Use proxy for signaling (direct connection usually blocked by CORS)
+    // This avoids ECONNREFUSED errors in the console
+    console.log('Sending signaling request via proxy...')
+    const response = await fetch('/api/webrtc/signaling', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cameraServerIP: cameraServerIP,
+        api: signalingUrl,
+        streamurl: streamUrl,
+        sdp: offer.sdp,
+      }),
+    })
 
     if (!response.ok) {
       throw new Error(`Signaling failed: ${response.status}`)

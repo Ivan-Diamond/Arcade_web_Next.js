@@ -22,81 +22,73 @@ export default function GameRoomPage() {
   const macNo = params.macNo as string
   
   const [isConnected, setIsConnected] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
-  const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'ended'>('waiting')
-  const [timeRemaining, setTimeRemaining] = useState(30)
-  const [roomInfo, setRoomInfo] = useState<any>(null)
-  const [playerCount, setPlayerCount] = useState(1)
-  const [gameTimer, setGameTimer] = useState(0)
   const [isGameActive, setIsGameActive] = useState(false)
+  const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'result' | 'ended'>('waiting')
+  const [timeRemaining, setTimeRemaining] = useState(0)
+  const [gameTimer, setGameTimer] = useState(0)
+  const [coins, setCoins] = useState<number | null>(null)
+  const [playerCount, setPlayerCount] = useState(1)
+  const [isMuted, setIsMuted] = useState(false)
+  const [roomInfo, setRoomInfo] = useState<any>(null)
+  const [isWaitingForServer, setIsWaitingForServer] = useState(false)
+  const [queuePosition, setQueuePosition] = useState<number | null>(null)
+  const [machineOccupied, setMachineOccupied] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [currentCamera, setCurrentCamera] = useState<0 | 1>(0)
   const [machineData, setMachineData] = useState<any>(null)
   const [isVideoLoading, setIsVideoLoading] = useState(true)
+  const [isInQueue, setIsInQueue] = useState(false)
+  const [isJoiningQueue, setIsJoiningQueue] = useState(false)
+  const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null)
+  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null)
   
   const videoRef = useRef<HTMLVideoElement>(null)
   const signalingRef = useRef<WebRTCSignaling | null>(null)
   const socketClientRef = useRef<ProtobufSocketClient | null>(null)
   const moveIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const gameTimerRef = useRef<NodeJS.Timeout | null>(null)
   const coinNotifications = useCoinNotifications()
   const gameNotifications = useGameNotifications(session?.user?.id || '', coinNotifications.showCoinChange)
+
+  // Cache for usernames to prevent repeated API calls
+  const usernameCache = useRef<Map<number, string>>(new Map())
+
+  // Fetch username by user ID with caching
+  const fetchUsername = async (userId: number): Promise<string> => {
+    // Check cache first
+    if (usernameCache.current.has(userId)) {
+      return usernameCache.current.get(userId)!
+    }
+
+    try {
+      const response = await fetch(`/api/user/${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.code === 20000 && data.data?.user) {
+          const username = data.data.user.username || data.data.user.nickname || data.data.user.name || `Player #${userId}`
+          usernameCache.current.set(userId, username)
+          return username
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch username:', error)
+    }
+    
+    const fallback = `Player #${userId}`
+    usernameCache.current.set(userId, fallback)
+    return fallback
+  }
 
   // Initialize coins on mount to prevent "undefined" notification
   useEffect(() => {
     gameNotifications.initializeCoins()
   }, []) // Empty deps, run once on mount
 
-  // Initialize WebRTC immediately with known camera patterns
+  // Initialize WebRTC with machine data
   useEffect(() => {
-    // Start WebRTC immediately with all known camera server patterns
-    const initializeImmediately = async () => {
-      console.log('Attempting immediate WebRTC connection for machine:', macNo)
-      
-      // All known camera server IPs and patterns
-      const possibleUrls = [
-        // Main camera servers
-        `rtmp://206.81.25.143:1935/live/${macNo}_0`,
-        `rtmp://206.81.25.143:1935/live/${macNo}_1`,
-        `rtmp://46.101.131.181:1935/live/${macNo}_0`, 
-        `rtmp://46.101.131.181:1935/live/${macNo}_1`,
-        
-        // Alternative patterns for animated machines
-        `rtmp://www.xbdoll.cn:1935/live/${macNo}_0`,
-        `rtmp://www.xbdoll.cn:1935/live/${macNo}_1`,
-        `rtmp://www.xbdoll.cn:1935/live/${macNo}`,
-        
-        // Numeric patterns
-        `rtmp://206.81.25.143:1935/live/${macNo}`,
-        `rtmp://46.101.131.181:1935/live/${macNo}`,
-        
-        // Try without underscores for some machines
-        `rtmp://206.81.25.143:1935/live/${macNo}0`,
-        `rtmp://206.81.25.143:1935/live/${macNo}1`,
-        
-        // Other possible server IPs
-        `rtmp://104.248.143.207:1935/live/${macNo}_0`,
-        `rtmp://104.248.143.207:1935/live/${macNo}_1`,
-      ]
-      
-      // Try each URL until one succeeds
-      for (const url of possibleUrls) {
-        try {
-          console.log('Trying:', url)
-          await initializeWebRTC(url)
-          console.log('SUCCESS! Connected to:', url)
-          return // Exit on first success
-        } catch (error) {
-          console.log('Failed:', url, (error as Error).message)
-        }
-      }
-      
-      console.log('All immediate connection attempts failed')
-    }
-    
-    initializeImmediately()
-    
-    // Also fetch machine data for accurate info (but don't wait for it)
-    const fetchMachineData = async () => {
+    // Fetch machine data and use camera URLs from it
+    const fetchAndInitialize = async () => {
       if (!session?.jwt) return
       
       try {
@@ -105,13 +97,17 @@ export default function GameRoomPage() {
           const machine = data.machines.find((m: any) => m.macNo === macNo)
           if (machine) {
             setMachineData(machine)
-            // If we have actual camera URLs and they're different, update the stream
+            
+            // Use camera URLs from machine data only
             const cameraUrl = machine.camera0Url || machine.camera1Url
-            if (cameraUrl && signalingRef.current) {
-              // Reconnect with correct URL if needed
-              console.log('Updating to actual camera URL:', cameraUrl)
+            if (cameraUrl) {
+              console.log('Initializing WebRTC with machine camera URL:', cameraUrl)
               await initializeWebRTC(cameraUrl)
+            } else {
+              console.error('No camera URLs found in machine data')
             }
+          } else {
+            console.error('Machine not found in lobby data:', macNo)
           }
         }
       } catch (error) {
@@ -119,7 +115,7 @@ export default function GameRoomPage() {
       }
     }
     
-    fetchMachineData()
+    fetchAndInitialize()
   }, [session, macNo])
 
   // Game timer countdown - both timeRemaining and gameTimer
@@ -143,7 +139,41 @@ export default function GameRoomPage() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    if (!session?.user?.id || !(session as any)?.socketPassword) return
+    if (!session?.user?.id || !(session as any).socketPassword) {
+      console.log('Session not ready, skipping socket connection')
+      return
+    }
+
+    // Development debugging - log component reload
+    console.log('🔄 GameRoom component reloaded at:', new Date().toLocaleTimeString())
+
+    // Handle page unload (browser close, refresh, navigation)
+    const handleBeforeUnload = () => {
+      if (socketClientRef.current) {
+        // If user is playing, send grab command like Flutter does
+        if (gameStatus === 'playing') {
+          console.log('User exiting while playing - sending grab command')
+          socketClientRef.current.sendWawaMove(WawaOptEnum.GRAB)
+        }
+        
+        socketClientRef.current.exitRoom()
+        socketClientRef.current.disconnect()
+      }
+    }
+
+    // Handle page visibility change (tab switch, minimize)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('Page is now hidden (tab switched or minimized)')
+        // Don't exit room on visibility change - user may come back
+        // Only track the event for analytics if needed
+      } else {
+        console.log('Page is now visible')
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     const client = new ProtobufSocketClient()
     socketClientRef.current = client
@@ -170,6 +200,11 @@ export default function GameRoomPage() {
     client.onEnterRoomResult = (data: any) => {
       console.log('Enter room result:', data)
       setRoomInfo(data)
+      // Check if machine is currently occupied (isServerSide indicates if current user is playing)
+      if (data.isServerSide === false) {
+        // Another player might be playing, wait for PLAYGAMEORDER messages for current status
+        console.log('Entered room, waiting for game state updates')
+      }
       // Don't initialize WebRTC here - it's already done with machine data
     }
 
@@ -184,28 +219,41 @@ export default function GameRoomPage() {
         setGameStatus('waiting')
         setTimeRemaining(30)
         setGameTimer(0)
+        // Mark machine as available after your game ends
+        setMachineOccupied(false)
       }, 3000)
     }
 
     client.onWawaResult = (result: any) => {
       console.log('Wawa result:', result)
-      gameNotifications.handleWawaResult(result)
-      
-      // Game ends when we receive WAWARESULTMESSAGE
-      setIsGameActive(false)
-      setGameStatus('ended')
+      // Clear game timer
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current)
+        gameTimerRef.current = null
+      }
       
       // Clear any existing reset timeout
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current)
       }
       
+      const isSuccess = result.data === 1
+      
+      // Immediately disable controls
+      setIsGameActive(false)
+      
+      // Show result modal
+      setGameStatus('result')
+      gameNotifications.handleWawaResult({ data: result.data })
+      
       // Reset to idle state after 4 seconds (allows modal to display)
       resetTimeoutRef.current = setTimeout(() => {
         setGameStatus('waiting')
-        setTimeRemaining(30)
-        setGameTimer(30)
-      }, 4000)
+        setTimeRemaining(0)
+        setGameTimer(0)
+        // Mark machine as available after your game ends
+        setMachineOccupied(false)
+      }, 5000)
     }
 
     client.onBallCount = (result: any) => {
@@ -216,10 +264,225 @@ export default function GameRoomPage() {
       gameNotifications.handleScore(result)
     }
 
+    // Handle inter-player messages
+    client.onRoomMessage = (message: any) => {
+      console.log('Room message received:', message)
+      const msgData = message.msgData
+      const senderName = message.senderUserName
+      
+      if (msgData?.includes('deducted')) {
+        // Show feedback for mischief actions
+        console.log('Mischief action completed by', senderName)
+      } else if (msgData?.includes('already been mischieved')) {
+        console.log('Mischief action blocked - cooldown active')
+      }
+    }
+
+    // Handle queue position updates from server
+    client.onQueueUpdate = (playGameOrder: any) => {
+      console.log('Queue/Game state update:', playGameOrder)
+      const order = playGameOrder.order
+      const msgUserID = playGameOrder.userID
+      
+      // Check if this message is for the current user
+      const isForCurrentUser = msgUserID === session?.user?.id
+      
+      if (!isForCurrentUser) {
+        // Message is about another player
+        if (order === 1) {
+          // Someone else is playing - machine is occupied
+          setCurrentPlayerId(msgUserID)
+          console.log('Machine occupied by user:', msgUserID)
+          
+          // Fetch the player's username and update state atomically
+          fetchUsername(msgUserID).then(username => {
+            // Batch state updates to prevent race conditions
+            setMachineOccupied(true)
+            setCurrentPlayerName(username)
+          }).catch(() => {
+            // Fallback if username fetch fails
+            setMachineOccupied(true)
+            setCurrentPlayerName(`Player #${msgUserID}`)
+          })
+        } else if (order === 0) {
+          // No one is playing - machine is available
+          setMachineOccupied(false)
+          setCurrentPlayerName(null)
+          setCurrentPlayerId(null)
+          console.log('Machine is now available')
+        }
+      } else {
+        // Message is for the current user
+        if (order > 100000 && order < 200000) {
+          // Queue position format: 1XXYYY
+          const position = Math.floor(order / 1000) - 102
+          const queueSize = order % 1000
+          
+          console.log(`Your queue position: ${position} of ${queueSize}`)
+          
+          if (position > 0 && queueSize > 0) {
+            setIsInQueue(true)
+            setIsJoiningQueue(false)
+            setQueuePosition(position)
+            
+            // Auto-start when reaching front of queue
+            if (position === 1) {
+              console.log('You are at the front of the queue!')
+              // Reduce delay for more responsive queue progression
+              setTimeout(() => {
+                if (socketClientRef.current && !isWaitingForServer) {
+                  handleStartGame()
+                }
+              }, 500)
+            }
+          }
+        } else if (order === 0) {
+          // Machine is available - you can play now
+          setIsInQueue(false)
+          setQueuePosition(null)
+          setMachineOccupied(false)
+        } else if (order === 1) {
+          // Should not happen for current user
+          console.warn('Unexpected order=1 for current user')
+        } else if (order === 2) {
+          // You are currently playing - clear queue state and start game
+          console.log('Server confirmed you are playing - auto-starting game')
+          setIsInQueue(false)
+          setQueuePosition(null)
+          setIsJoiningQueue(false)
+          setMachineOccupied(false)
+          
+          // Auto-start the game when promoted from queue
+          if (!isGameActive && socketClientRef.current) {
+            console.log('Auto-starting game from queue promotion - sending start game message')
+            // Send start game message to server
+            socketClientRef.current.startGame()
+            setIsWaitingForServer(true)
+            // Game state will be set by onStartGameResult handler
+          }
+        }
+      }
+    }
+
+    // Handle start game response from server
+    client.onStartGameResult = (result: any) => {
+      console.log('Start game result from server:', result)
+      setIsWaitingForServer(false)
+      
+      if (result.startGameResult === -1) {
+        // Failed to start game - show error message
+        const errorMsg = result.des || 'Failed to start game'
+        setErrorMessage(errorMsg)
+        
+        // Check specific error conditions
+        if (errorMsg.includes('enough gold') || errorMsg.includes('insufficient')) {
+          console.log('Insufficient coins to start game')
+          // Update coins if provided
+          if (result.totalGold !== undefined) {
+            setCoins(result.totalGold)
+          }
+        } else {
+          setMachineOccupied(true)
+        }
+        
+        // Clear error after 3 seconds for faster feedback
+        setTimeout(() => setErrorMessage(null), 3000)
+      } else {
+        // Game approved - clear queue state and enable controls
+        setIsInQueue(false)
+        setQueuePosition(null)
+        setIsJoiningQueue(false)
+        setMachineOccupied(false)
+        
+        // Update coins (game cost deducted by server)
+        if (result.totalGold !== undefined) {
+          setCoins(result.totalGold)
+        }
+        
+        setIsGameActive(true)
+        setGameStatus('playing')
+        setErrorMessage(null)
+        setTimeRemaining(result.gameDuring || 30) // Use server's game duration
+        
+        console.log('Game started! Cleared queue state. Duration:', result.gameDuring || 30)
+        
+        // Start countdown timer
+        gameTimerRef.current = setInterval(() => {
+          setGameTimer(prev => prev + 1)
+          setTimeRemaining(prev => {
+            if (prev <= 1) {
+              // Game time ended
+              setIsGameActive(false)
+              setGameStatus('ended')
+              clearInterval(gameTimerRef.current!)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+      }
+    }
+    
+    // Handle game result (when game ends)
+    client.onGameResult = (result: any) => {
+      console.log('🎮 Game result received at:', new Date().toLocaleTimeString(), result)
+      
+      // Update user's coins and score
+      if (result.totalGold !== undefined) {
+        setCoins(result.totalGold)
+      }
+      
+      // Reset game state
+      setIsGameActive(false)
+      setGameStatus('waiting')
+      setTimeRemaining(0)
+      setGameTimer(0)
+      
+      // Clear any timers
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current)
+        gameTimerRef.current = null
+      }
+      
+      // Check if there's a queue and handle auto-progression
+      // The server will send PLAYGAMEORDER messages to handle queue progression
+      console.log('Game ended, waiting for server queue updates')
+    }
+    
+    // Handle player count updates
+    client.onPlayerCount = (count: number) => {
+      console.log('Player count update:', count)
+      setPlayerCount(count)
+    }
+    
+    // Handle enter room response
+    client.onEnterRoomResult = (result: any) => {
+      console.log('Enter room result:', result)
+      if (result.isMeOperation) {
+        // User already has control
+        setMachineOccupied(false)
+      } else if (result.playTimes && result.playTimes > 0) {
+        // Someone else is playing
+        setMachineOccupied(true)
+        setTimeRemaining(result.playTimes)
+        
+        // Start a timer to reset when other player is done
+        setTimeout(() => {
+          setMachineOccupied(false)
+          setTimeRemaining(0)
+        }, result.playTimes * 1000)
+      }
+    }
+
     // Connect to server
     client.connect(session.user?.id || '', (session as any).socketPassword, macNo)
 
     return () => {
+      // Cleanup event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Cleanup connections
       if (socketClientRef.current) {
         socketClientRef.current.exitRoom()
         socketClientRef.current.disconnect()
@@ -348,31 +611,50 @@ export default function GameRoomPage() {
   }
 
   const handleStartGame = () => {
-    console.log('Starting game...')
+    console.log('Requesting to start game...')
     
+    // Don't change any UI state here - wait for server response
     // Clear any pending reset timeout when starting a new game
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current)
       resetTimeoutRef.current = null
     }
     
-    // Clear any existing move interval
-    if (moveIntervalRef.current) {
-      clearInterval(moveIntervalRef.current)
-      moveIntervalRef.current = null
+    if (socketClientRef.current) {
+      setIsWaitingForServer(true)
+      setErrorMessage(null)
+      // Send start game request - UI will update based on server response
+      socketClientRef.current.startGame()
+      // Do NOT set game active or playing here - wait for server confirmation
     }
+  }
+
+  const handleJoinQueue = () => {
+    console.log('Joining queue...')
+    setIsJoiningQueue(true)
     
-    // Close any open notification before starting
-    gameNotifications.clearCurrentNotification()
+    // Send join queue request via protobuf
+    if (socketClientRef.current) {
+      socketClientRef.current.joinQueue(macNo)
+      // Queue state will be updated when server responds with queue position
+    } else {
+      console.error('Socket not connected')
+      setIsJoiningQueue(false)
+    }
+  }
+
+  const handleLeaveQueue = () => {
+    console.log('Leaving queue...')
     
-    // Refresh coins when game starts (deduct cost)
-    gameNotifications.handleGameStart({})
-    
-    socketClientRef.current?.startGame()
-    setGameStatus('playing')
-    setIsGameActive(true)
-    setTimeRemaining(30)
-    setGameTimer(30)
+    // Send leave queue request via protobuf
+    if (socketClientRef.current) {
+      socketClientRef.current.leaveQueue(macNo)
+      // Reset queue state immediately for responsive UI
+      setIsInQueue(false)
+      setQueuePosition(null)
+    } else {
+      console.error('Socket not connected')
+    }
   }
 
   const handleExitRoom = () => {
@@ -383,16 +665,16 @@ export default function GameRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-dark-bg text-white">
+      <div className="container mx-auto p-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-neon-cyan">
-              Machine #{macNo}
+            <h1 className="text-3xl font-bold mb-2">
+              Machine {macNo}
             </h1>
-            <p className="text-gray-400 text-sm">
-              {roomInfo?.gameName || 'Loading...'}
+            <p className="text-gray-400">
+              {machineData?.name || roomInfo?.machineName || ''}
             </p>
           </div>
           
@@ -435,15 +717,74 @@ export default function GameRoomPage() {
                 />
                 
                 {gameStatus === 'waiting' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                    <div className="text-center">
-                      <p className="text-neon-cyan mb-4">Ready to play?</p>
-                      <button
-                        onClick={handleStartGame}
-                        className="btn-neon px-8 py-3"
-                      >
-                        Start Game
-                      </button>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                    <div className="text-center p-6 max-w-md">
+                      {/* Error message */}
+                      {errorMessage && (
+                        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg backdrop-blur-sm">
+                          <p className="text-red-400">{errorMessage}</p>
+                        </div>
+                      )}
+                      
+                      {/* Machine occupation status */}
+                      {machineOccupied && !isWaitingForServer && !isInQueue && (
+                        <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg backdrop-blur-sm">
+                          <p className="text-yellow-400">
+                            {currentPlayerName ? `${currentPlayerName} is playing` : 'Machine is currently occupied'}
+                          </p>
+                          {timeRemaining > 0 && (
+                            <p className="text-yellow-400 text-sm mt-1">
+                              Time remaining: {timeRemaining}s
+                            </p>
+                          )}
+                          {isJoiningQueue ? (
+                            <div className="flex items-center justify-center mt-2">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neon-cyan mr-2"></div>
+                              <span className="text-neon-cyan text-sm">Joining queue...</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handleJoinQueue}
+                              className="btn-neon mt-2 px-6 py-2 text-sm"
+                            >
+                              Join Queue
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Queue position */}
+                      {isInQueue && queuePosition !== null && queuePosition > 0 && (
+                        <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg backdrop-blur-sm">
+                          <p className="text-blue-400 mb-2">Your position in queue: {queuePosition}</p>
+                          <button
+                            onClick={handleLeaveQueue}
+                            className="btn-neon-secondary px-4 py-1 text-sm"
+                          >
+                            Leave Queue
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Start button or loading state */}
+                      {!machineOccupied && (
+                        isWaitingForServer ? (
+                          <div className="flex flex-col items-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mb-4"></div>
+                            <p className="text-neon-cyan">Requesting game start...</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-neon-cyan mb-4">Ready to play?</p>
+                            <button
+                              onClick={handleStartGame}
+                              className="btn-neon px-8 py-3"
+                            >
+                              Start Game
+                            </button>
+                          </>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
@@ -462,8 +803,13 @@ export default function GameRoomPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-neon-pink" />
-                    <span className="text-sm">{roomInfo?.playerNum || 0} watching</span>
+                    <span className="text-sm">{Math.max(0, playerCount - 1)} watching</span>
                   </div>
+                  {queuePosition !== null && queuePosition > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-yellow-400">Queue Position: {queuePosition}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
