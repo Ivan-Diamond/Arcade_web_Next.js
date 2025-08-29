@@ -8,6 +8,7 @@ import { roomService, type Machine, type LobbyData } from '@/lib/api/room-servic
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { formatMachineName } from '@/lib/utils/formatMachineName'
+import { GameRewards } from '@/lib/utils/gameRewards'
 
 export default function LobbyPage() {
   const { data: session } = useSession()
@@ -251,18 +252,16 @@ function MachineCard({
 
       {/* Machine Info */}
       <h3 className="font-semibold text-white mb-1 truncate">{formatMachineName(machine.gameName)}</h3>
-      <p className="text-sm text-gray-400 mb-2">{machine.machineType}</p>
+      {/*<p className="text-sm text-gray-400 mb-2">{machine.machineType}</p>*/}
       
       {/* Cost and Reward */}
       <div className="flex justify-between items-center text-sm">
         <span className="text-yellow-400">
           💰 {machine.price} coins
         </span>
-        {machine.isWinGetGold > 0 && (
-          <span className="text-green-400">
-            🏆 +{machine.isWinGetGold} coins
-          </span>
-        )}
+        <span className="text-green-400">
+          🏆 {GameRewards.getMaxWinAmount(machine.gameName)} coins
+        </span>
       </div>
 
       {/* Play Time */}
