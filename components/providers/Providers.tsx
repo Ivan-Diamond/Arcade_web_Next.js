@@ -10,7 +10,7 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <SessionProvider>
+    <SessionProvider basePath="/app/api/auth">
       {children}
       <Toaster
         position="bottom-right"

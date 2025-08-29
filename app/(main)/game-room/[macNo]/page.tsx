@@ -81,7 +81,7 @@ export default function GameRoomPage() {
     }
 
     try {
-      const response = await fetch(`/api/user/${userId}`)
+      const response = await fetch(`/app/api/user/${userId}`)
       if (response.ok) {
         const data = await response.json()
         if (data.code === 20000 && data.data?.user) {

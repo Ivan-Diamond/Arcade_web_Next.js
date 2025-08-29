@@ -61,7 +61,7 @@ class ProtobufSocketClient {
   private async loadProto() {
     try {
       // Load proto definition
-      const response = await fetch('/proto/CustomerNettyProto.proto')
+      const response = await fetch('/app/proto/CustomerNettyProto.proto')
       const protoContent = await response.text()
       
       this.root = protobuf.parse(protoContent).root
@@ -85,7 +85,7 @@ class ProtobufSocketClient {
     this.socketPassword = socketPassword
     this.macNo = macNo || ''
 
-    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://206.81.25.143:59199/ws'
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss://msaarcade.com/ws' : 'ws://206.81.25.143:59199/ws')
     
     console.log('Connecting to WebSocket:', wsUrl)
     

@@ -30,8 +30,8 @@ export interface LobbyData {
 export const roomService = {
   async getLobbyData(): Promise<LobbyData | null> {
     try {
-      console.log('Room service: Calling /api/lobby');
-      const response = await fetch('/api/lobby');
+      console.log('Room service: Calling /app/api/lobby');
+      const response = await fetch('/app/api/lobby');
       
       console.log('Room service: API response status:', response.status);
       

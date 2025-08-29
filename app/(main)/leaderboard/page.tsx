@@ -23,7 +23,7 @@ export default function LeaderboardPage() {
     const fetchRankings = async () => {
       setLoading(true)
       try {
-        const response = await fetch('/api/rankings')
+        const response = await fetch('/app/api/rankings')
         const data = await response.json()
         
         if (data.data?.byWins && data.data?.byCoins) {

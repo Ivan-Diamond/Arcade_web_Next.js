@@ -169,51 +169,51 @@ function MachineCard({
     
     // Check for specific machine names first
     if (nameUpper.includes('BOOM') || nameUpper.includes('BALL')) {
-      return '/images/machineIcons/BOOM_BALL.webp';
+      return '/app/images/machineIcons/BOOM_BALL.webp';
     }
     if (nameUpper.includes('CATCH') || nameUpper.includes('MATCH')) {
-      return '/images/machineIcons/CATCH_MATCH.webp';
+      return '/app/images/machineIcons/CATCH_MATCH.webp';
     }
     if (nameUpper.includes('LOLLIPOP') || nameUpper.includes('LOOP')) {
-      return '/images/machineIcons/LOLLIPOP_LOOP.webp';
+      return '/app/images/machineIcons/LOLLIPOP_LOOP.webp';
     }
     if (nameUpper.includes('MONSTER') || nameUpper.includes('FOREST')) {
-      return '/images/machineIcons/MONSTER_FOREST.webp';
+      return '/app/images/machineIcons/MONSTER_FOREST.webp';
     }
     if (nameUpper.includes('ALIEN') || nameUpper.includes('COW')) {
-      return '/images/machineIcons/alienCow.webp';
+      return '/app/images/machineIcons/alienCow.webp';
     }
     if (nameUpper.includes('HIT') && nameUpper.includes('CUP')) {
-      return '/images/machineIcons/hitthecup1.webp';
+      return '/app/images/machineIcons/hitthecup1.webp';
     }
     
     // Check machine types
     if (nameUpper.includes('COLOR')) {
-      return '/images/machineIcons/color_game_icon.webp';
+      return '/app/images/machineIcons/color_game_icon.webp';
     }
     if (nameUpper.includes('PACHINKO')) {
-      return '/images/machineIcons/pachinko_icon.webp';
+      return '/app/images/machineIcons/pachinko_icon.webp';
     }
     if (nameUpper.includes('RANDOM') || nameUpper.includes('HOLE')) {
-      return '/images/machineIcons/random_hole_icon.webp';
+      return '/app/images/machineIcons/random_hole_icon.webp';
     }
     if (nameUpper.includes('REBOUND')) {
-      return '/images/machineIcons/rebound_game_icon.webp';
+      return '/app/images/machineIcons/rebound_game_icon.webp';
     }
     if (nameUpper.includes('SWEEP')) {
-      return '/images/machineIcons/sweeper_icon.webp';
+      return '/app/images/machineIcons/sweeper_icon.webp';
     }
     if (nameUpper.includes('ANIMATED')) {
-      return '/images/machineIcons/moving_claw.webp';
+      return '/app/images/machineIcons/moving_claw.webp';
     }
     
     // Check if it's a classic claw machine (CM_X pattern)
     if (nameUpper.startsWith('CM_') || typeUpper.includes('CLAW')) {
-      return '/images/machineIcons/claw_machine.webp';
+      return '/app/images/machineIcons/claw_machine.webp';
     }
     
     // Default to classic icon
-    return '/images/machineIcons/classic_icon.webp';
+    return '/app/images/machineIcons/classic_icon.webp';
   };
 
   return (
@@ -230,7 +230,7 @@ function MachineCard({
           alt={machine.gameName}
           className="w-full h-full object-contain p-2"
           onError={(e) => {
-            e.currentTarget.src = '/images/machineIcons/classic_icon.webp';
+            e.currentTarget.src = '/app/images/machineIcons/classic_icon.webp';
           }}
         />
         

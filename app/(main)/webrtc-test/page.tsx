@@ -29,7 +29,7 @@ export default function WebRTCTestPage() {
       addLog('Fetching actual machine camera URLs...')
       
       // First get the actual camera URLs from the API
-      const response = await fetch('/api/lobby')
+      const response = await fetch('/app/api/lobby')
       const data = await response.json()
       
       if (!data.data?.machines || data.data.machines.length === 0) {
@@ -189,7 +189,7 @@ export default function WebRTCTestPage() {
   const testMachineData = async () => {
     try {
       addLog('Fetching machine data from API...')
-      const response = await fetch('/api/lobby')
+      const response = await fetch('/app/api/lobby')
       const data = await response.json()
       
       if (data.code === 20000 && data.data?.machines) {

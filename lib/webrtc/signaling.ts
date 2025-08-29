@@ -100,7 +100,7 @@ export class WebRTCSignaling {
     // Use proxy for signaling (direct connection usually blocked by CORS)
     // This avoids ECONNREFUSED errors in the console
     console.log('Sending signaling request via proxy...')
-    const response = await fetch('/api/webrtc/signaling', {
+    const response = await fetch('/app/api/webrtc/signaling', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

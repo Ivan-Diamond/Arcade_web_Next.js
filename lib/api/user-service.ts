@@ -18,7 +18,7 @@ export const userService = {
   
   async refreshUserData(jwt: string) {
     try {
-      const response = await fetch('/api/user/refresh', {
+      const response = await fetch('/app/api/user/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
