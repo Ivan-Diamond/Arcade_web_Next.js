@@ -15,6 +15,7 @@ import { WawaResultNotification } from '@/lib/types/game-notifications'
 import { WebRTCSignaling } from '@/lib/webrtc/signaling'
 import { roomService } from '@/lib/api/room-service'
 import { GameControls } from '@/components/game-controls/GameControls'
+import HowToPlay from '@/components/game/HowToPlay'
 
 // Game states matching Flutter implementation
 enum GameState {
@@ -788,7 +789,7 @@ export default function GameRoomPage() {
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Coins className="w-5 h-5 text-yellow-500" />
-                    <span className="text-sm">Cost: {machineData?.price || roomInfo?.price || 10} coins</span>
+                    <span className="text-sm">Cost: {machineData?.price || roomInfo?.price || 0} coins</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Timer className="w-5 h-5 text-neon-cyan" />
@@ -806,6 +807,13 @@ export default function GameRoomPage() {
                 </div>
               </div>
             </div>
+            
+            {/* How to Play Section - Under video and control area */}
+            <HowToPlay 
+              gameName={machineData?.gameName || roomInfo?.gameName}
+              machineName={machineData?.name || roomInfo?.machineName}
+              price={machineData?.price || roomInfo?.price || 10}
+            />
           </div>
 
           {/* Controls */}
