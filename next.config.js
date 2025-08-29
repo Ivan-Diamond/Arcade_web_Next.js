@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: '/app',
   images: {
     domains: ['localhost', '206.81.25.143'],
   },
