@@ -16,10 +16,10 @@ export default function ProfilePage() {
     id: authUser?.id || session?.user?.id || '',
     username: authUser?.username || session?.user?.username || 'Player',
     coins: authUser?.coins || 0,
-    wins: authUser?.wins || 0,
-    gamesPlayed: authUser?.gamesPlayed || 0,
-    winRate: authUser?.winRate || 0,
-    level: authUser?.level || 1,
+    wins: (authUser as any)?.wins || 0,
+    gamesPlayed: (authUser as any)?.gamesPlayed || 0,
+    winRate: (authUser as any)?.winRate || 0,
+    level: (authUser as any)?.level || 1, // Fixed TypeScript error
   }
 
   const handleLogout = () => {
