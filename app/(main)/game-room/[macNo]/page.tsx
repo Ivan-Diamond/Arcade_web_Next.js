@@ -14,6 +14,7 @@ import FloatingCoinNotification from '@/components/ui/FloatingCoinNotification'
 import { WawaResultNotification } from '@/lib/types/game-notifications'
 import { WebRTCSignaling } from '@/lib/webrtc/signaling'
 import { roomService } from '@/lib/api/room-service'
+import { GameControls } from '@/components/game-controls/GameControls'
 
 // Game states matching Flutter implementation
 enum GameState {
@@ -829,90 +830,14 @@ export default function GameRoomPage() {
                 <SwitchCamera className="w-5 h-5 text-neon-purple" />
               </button>
               
-              {/* D-Pad */}
-              <div className="relative w-48 h-48 mx-auto mb-8">
-                {/* Up */}
-                <button
-                  onMouseDown={() => startContinuousMove(WawaOptEnum.UP)}
-                  onMouseUp={stopContinuousMove}
-                  onMouseLeave={stopContinuousMove}
-                  onTouchStart={() => startContinuousMove(WawaOptEnum.UP)}
-                  onTouchEnd={stopContinuousMove}
-                  disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 
-                           bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
-                           rounded-t-lg border border-neon-cyan/50 
-                           flex items-center justify-center transition-all"
-                >
-                  <ArrowUp className="w-6 h-6 text-neon-cyan" />
-                </button>
-                
-                {/* Down */}
-                <button
-                  onMouseDown={() => startContinuousMove(WawaOptEnum.DOWN)}
-                  onMouseUp={stopContinuousMove}
-                  onMouseLeave={stopContinuousMove}
-                  onTouchStart={() => startContinuousMove(WawaOptEnum.DOWN)}
-                  onTouchEnd={stopContinuousMove}
-                  disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16
-                           bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
-                           rounded-b-lg border border-neon-cyan/50
-                           flex items-center justify-center transition-all"
-                >
-                  <ArrowDown className="w-6 h-6 text-neon-cyan" />
-                </button>
-                
-                {/* Left */}
-                <button
-                  onMouseDown={() => startContinuousMove(WawaOptEnum.LEFT)}
-                  onMouseUp={stopContinuousMove}
-                  onMouseLeave={stopContinuousMove}
-                  onTouchStart={() => startContinuousMove(WawaOptEnum.LEFT)}
-                  onTouchEnd={stopContinuousMove}
-                  disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-16 h-16
-                           bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
-                           rounded-l-lg border border-neon-cyan/50
-                           flex items-center justify-center transition-all"
-                >
-                  <ArrowLeft className="w-6 h-6 text-neon-cyan" />
-                </button>
-                
-                {/* Right */}
-                <button
-                  onMouseDown={() => startContinuousMove(WawaOptEnum.RIGHT)}
-                  onMouseUp={stopContinuousMove}
-                  onMouseLeave={stopContinuousMove}
-                  onTouchStart={() => startContinuousMove(WawaOptEnum.RIGHT)}
-                  onTouchEnd={stopContinuousMove}
-                  disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16
-                           bg-dark-surface hover:bg-neon-cyan/20 disabled:opacity-50
-                           rounded-r-lg border border-neon-cyan/50
-                           flex items-center justify-center transition-all"
-                >
-                  <ArrowRight className="w-6 h-6 text-neon-cyan" />
-                </button>
-                
-                {/* Center */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-                             w-16 h-16 bg-dark-surface/50 rounded-lg
-                             border border-neon-cyan/30" />
-              </div>
-              
-              {/* Catch Button */}
-              <button
-                onClick={() => handleMove(WawaOptEnum.GRAB)}
+              {/* Game Controls - Extensible Joystick System */}
+              <GameControls
+                machineName={machineData?.gameName || roomInfo?.gameName || machineData?.name || roomInfo?.machineName}
+                startContinuousMove={startContinuousMove}
+                stopContinuousMove={stopContinuousMove}
+                handleMove={handleMove}
                 disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-                className="w-full py-4 bg-gradient-to-r from-neon-pink to-neon-purple
-                         hover:shadow-neon-pink disabled:opacity-50 disabled:hover:shadow-none
-                         rounded-lg font-bold text-lg transition-all
-                         flex items-center justify-center gap-2"
-              >
-                <Circle className="w-6 h-6" />
-                CATCH
-              </button>
+              />
               
               {/* Instructions */}
               <div className="mt-6 p-4 bg-dark-surface/50 rounded-lg">
