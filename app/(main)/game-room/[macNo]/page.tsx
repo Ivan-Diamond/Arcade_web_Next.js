@@ -228,20 +228,12 @@ export default function GameRoomPage() {
       // Don't initialize WebRTC here - it's already done with machine data
     }
 
+    //not used
     client.onGameResult = (result: any) => {
-      console.log('Game result:', result)
-      setIAmPlaying(false)
-      setGameState(GameState.IDLE)
-      gameNotifications.handleGameResult(result)
       
-      // Reset to idle state after 3 seconds
-      setTimeout(() => {
-        setGameState(GameState.IDLE)
-        setTimeRemaining(30)
-        setGameTimer(0)
-      }, 3000)
     }
 
+    //game result
     client.onWawaResult = (result: any) => {
       console.log('Wawa result:', result)
       // Clear game timer
@@ -264,11 +256,9 @@ export default function GameRoomPage() {
       gameNotifications.handleWawaResult({ data: result.data })
       
       // Reset to idle state after 5 seconds (allows modal to display)
-      resetTimeoutRef.current = setTimeout(() => {
-        setGameState(GameState.IDLE)
-        setTimeRemaining(0)
-        setGameTimer(0)
-      }, 5000)
+      setGameState(GameState.IDLE)
+      setTimeRemaining(0)
+      setGameTimer(0)
     }
 
     client.onBallCount = (result: any) => {
@@ -401,6 +391,9 @@ export default function GameRoomPage() {
         setIAmPlaying(true)
         setQueuePosition(0)
         setQueueSize(0)
+        
+        // Trigger coin notification for game start (deduction)
+        gameNotifications.handleGameStart({})
         setCurrentPlayerId(Number(session?.user?.id))
         setCurrentPlayerName(session?.user?.name || 'You')
         
@@ -448,45 +441,6 @@ export default function GameRoomPage() {
           })
         }, 1000)
       }
-    }
-    
-    // Handle game result (WAWARESULTMESSAGE) - only received by the playing user
-    client.onWawaResult = (result: any) => {
-      console.log('Game ended (WAWARESULTMESSAGE):', result)
-      
-      // This message is only received by the player who was playing
-      const catchSuccess = result.data !== 0
-      if (catchSuccess) {
-        console.log('You won the prize!')
-        setSuccessMessage('🎉 Congratulations! You won the prize! 🎁')
-        setTimeout(() => setSuccessMessage(null), 6000)
-      } else {
-        console.log('Better luck next time!')
-        setErrorMessage('💔 Better luck next time! Try again!')
-        setTimeout(() => setErrorMessage(null), 4000)
-      }
-      
-      // Update coins if provided
-      if (result.totalGold !== undefined) {
-        const newCoins = Number(result.totalGold)
-        setCoins(newCoins)
-      }
-      
-      // Game has ended - reset state to IDLE for playing user
-      setGameState(GameState.IDLE)
-      setIAmPlaying(false)
-      setCurrentPlayerName(null)
-      setCurrentPlayerId(null)
-      setIsWaitingForServer(false)
-      
-      // Clear timer if still running
-      if (gameTimerRef.current) {
-        clearInterval(gameTimerRef.current)
-        gameTimerRef.current = null
-      }
-      setTimeRemaining(0)
-      
-      // Note: Other users will receive PLAYGAMEORDER with order=0 to reset their states
     }
     
     // Handle player count updates
