@@ -296,48 +296,37 @@ export default function GameRoomPage() {
     // Handle queue position updates from server - PLAYGAMEORDER messages
     client.onQueueUpdate = (playGameOrder: any) => {
       console.log('PLAYGAMEORDER message:', playGameOrder)
-      const order = playGameOrder.order
+      const order: number = playGameOrder.order
       const msgUserID = playGameOrder.userID ? String(playGameOrder.userID) : null
       
       // Check if this message is for the current user
       const currentUserId = String(session?.user?.id)
-      const isForCurrentUser = msgUserID && msgUserID === currentUserId
+      const isForCurrentUser = msgUserID !== null && msgUserID === currentUserId
       
       console.log('Message UserID:', msgUserID, 'Current UserID:', currentUserId, 'Is for current user:', isForCurrentUser, 'Order:', order)
       
       // Handle machine status messages (order 0 or 1) - these affect ALL users
-      if (order === 0) {
-        // Machine is FREE - anyone can play
-        console.log('Machine is FREE - resetting to IDLE')
-        setGameState(GameState.IDLE)
-        setCurrentPlayerName(null)
-        setCurrentPlayerId(null)
-        setQueuePosition(0)
-        setQueueSize(0)
-        setIAmPlaying(false)
-        setIsWaitingForServer(false)
-        setTimeRemaining(0)
-        
-        // Clear any game timer
-        if (gameTimerRef.current) {
-          clearInterval(gameTimerRef.current)
-          gameTimerRef.current = null
-        }
-        
-      } else if (order === 1) {
-        // Machine is OCCUPIED by the userID in message
-        console.log(`Machine OCCUPIED by user ${msgUserID} (current user: ${currentUserId})`)
-        setCurrentPlayerId(msgUserID ? Number(msgUserID) : null)
-        
-        if (isForCurrentUser) {
-          // Current user is playing (rare but handle it)
-          console.log('Server confirms I am playing')
-          setGameState(GameState.PLAYING)
-          setIAmPlaying(true)
+      if(isForCurrentUser === false){
+        if (order === 0 || order === undefined) {
+          // Machine is FREE - anyone can play
+          console.log('Machine is FREE - resetting to IDLE')
+          setGameState(GameState.IDLE)
+          setCurrentPlayerName(null)
+          setCurrentPlayerId(null)
           setQueuePosition(0)
           setQueueSize(0)
-        } else {
-          // Someone else is playing - ALWAYS set to OTHER_PLAYING
+          setIAmPlaying(false)
+          setIsWaitingForServer(false)
+          setTimeRemaining(0)
+          
+          // Clear any game timer
+          if (gameTimerRef.current) {
+            clearInterval(gameTimerRef.current)
+            gameTimerRef.current = null
+          }
+          
+        } else if (order === 1) {
+          // Someone else is playing - set to OTHER_PLAYING
           console.log('Setting state to OTHER_PLAYING')
           setGameState(GameState.OTHER_PLAYING)
           setIAmPlaying(false)
@@ -354,7 +343,6 @@ export default function GameRoomPage() {
             setCurrentPlayerName('Someone')
           }
         }
-        
       } else if (order > 100000 && order < 200000) {
         // Queue position message
         // Format: 1XXYYY where XX = position + 102, YYY = queue size
