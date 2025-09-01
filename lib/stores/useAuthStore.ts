@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { User, LoginCredentials, RegisterData } from '@/lib/types'
 import toast from 'react-hot-toast'
 import { signIn, signOut, getSession } from 'next-auth/react'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 interface AuthState {
   user: User | null
@@ -43,6 +44,15 @@ export const useAuthStore = create<AuthState>()(
           // Sync with session after login
           await get().syncWithSession()
           
+          // Track login event
+          const user = get().user
+          if (user) {
+            amplitudeService.trackLogin('username', user.id || user.username, {
+              username: user.username,
+              userType: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+            })
+          }
+          
           toast.success('Login successful!')
         } catch (error) {
           set({ isLoading: false })
@@ -67,6 +77,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        const user = get().user
+        if (user) {
+          amplitudeService.trackLogout(user.id || user.username)
+        }
+        
         await signOut({ redirect: false })
         set({
           user: null,

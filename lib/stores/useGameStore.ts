@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { GameRoom, GameSession, GameState, GameCommand } from '@/lib/types'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 interface GameStore {
   currentRoom: GameRoom | null
@@ -25,6 +26,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stream: null,
 
   joinRoom: (room) => {
+    // Track game start event
+    amplitudeService.trackGameStart(room.id, room.name, room.coinCost)
+    
     set({
       currentRoom: room,
       isConnected: true,
@@ -72,16 +76,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   endSession: (result) => {
-    const { currentSession, currentRoom } = get()
+    const currentSession = get().currentSession
+    const currentRoom = get().currentRoom
+    const gameState = get().gameState
+    
     if (currentSession && currentRoom) {
-      const coinsEarned = result === 'win' ? currentRoom.coinReward : 0
+      const duration = currentSession.startTime ? 
+        (new Date().getTime() - new Date(currentSession.startTime).getTime()) / 1000 : 0
+      const coinsWon = result === 'win' ? currentRoom.coinReward : 0
+      
+      // Track game end event
+      amplitudeService.trackGameEnd(currentRoom.id, result, coinsWon, duration)
+      
       set({
         currentSession: {
           ...currentSession,
-          endTime: new Date(),
           result,
-          coinsEarned,
-        }
+          endTime: new Date(),
+        },
       })
     }
   },
