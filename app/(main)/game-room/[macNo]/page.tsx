@@ -9,12 +9,14 @@ import ProtobufSocketClient from '@/lib/socket/protobuf-socket-client'
 import { WawaOptEnum } from '@/lib/socket/protobuf-socket-client'
 import { useGameNotifications } from '@/lib/hooks/useGameNotifications'
 import { useCoinNotifications } from '@/lib/hooks/useCoinNotifications'
+import { useMobileDetect } from '@/lib/hooks/useMobileDetect'
 import GameResultModal from '@/components/game/GameResultModal'
 import FloatingCoinNotification from '@/components/ui/FloatingCoinNotification'
 import { WawaResultNotification } from '@/lib/types/game-notifications'
 import { WebRTCSignaling } from '@/lib/webrtc/signaling'
 import { roomService } from '@/lib/api/room-service'
 import { GameControls } from '@/components/game-controls/GameControls'
+import { MobileGameControls } from '@/components/game-controls/MobileGameControls'
 import HowToPlay from '@/components/game/HowToPlay'
 
 // Game states matching Flutter implementation
@@ -30,6 +32,7 @@ export default function GameRoomPage() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
+  const { isMobile, isTablet, isTouchDevice } = useMobileDetect()
   const macNo = params.macNo as string
   
   // Core game state - single source of truth like Flutter
@@ -649,227 +652,230 @@ export default function GameRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg text-white">
-      <div className="container mx-auto p-4">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Machine {macNo}
-            </h1>
-            <p className="text-gray-400">
-              {machineData?.name || roomInfo?.machineName || ''}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Connection Status */}
-            <div className="flex items-center gap-2">
-              {isConnected ? (
-                <Wifi className="w-5 h-5 text-neon-green" />
-              ) : (
-                <WifiOff className="w-5 h-5 text-red-500" />
-              )}
-              <span className={`text-sm ${isConnected ? 'text-neon-green' : 'text-red-500'}`}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
+<div className={`min-h-screen bg-gradient-to-br from-dark-bg via-dark-surface to-dark-bg ${!isMobile ? 'p-4' : ''}`}>
+  <div className={isMobile ? '' : 'max-w-7xl mx-auto'}>
+    {/* Header - Responsive */}
+    <div className={`flex items-center justify-between ${isMobile ? 'p-3 bg-dark-surface/90 backdrop-blur-md border-b border-neon-cyan/30' : 'mb-6'}`}>
+      <div className="flex items-center gap-2 md:gap-4">
+        <button
+          onClick={() => router.push('/lobby')}
+          className={`${isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'} btn-neon-secondary`}
+        >
+          <span className="hidden sm:inline">← Back to Lobby</span>
+          <span className="sm:hidden">← Back</span>
+        </button>
+        <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-gradient truncate max-w-[150px] sm:max-w-none`}>
+          {machineData?.name || `Machine ${macNo}`}
+        </h1>
+      </div>
+      
+      {/* Connection Status */}
+      <div className="flex items-center gap-1 md:gap-2">
+        {isConnected ? (
+          <>
+            <Wifi className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-green-500`} />
+            <span className={`text-green-500 ${isMobile ? 'text-sm' : ''} hidden sm:inline`}>Connected</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-red-500`} />
+            <span className={`text-red-500 ${isMobile ? 'text-sm' : ''} hidden sm:inline`}>Disconnected</span>
+          </>
+        )}
+      </div>
+    </div>
+    {/* Main Content - Responsive Grid */}
+    <div className={`${isMobile ? '' : 'grid lg:grid-cols-3 gap-6'}`}>
+      {/* Video and Game Area - Full width on mobile */}
+      <div className={`${isMobile ? '' : 'lg:col-span-2 space-y-4'}`}>
+        <div className={`${isMobile ? '' : 'card-neon'} overflow-hidden`}>
+          {/* Video Player - Responsive aspect ratio */}
+          <div className={`relative bg-black ${isMobile ? 'aspect-[4/3]' : 'aspect-video'}`}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted={isMuted}
+              className="w-full h-full object-contain"
+            />
             
-            {/* Exit Button */}
-            <button
-              onClick={handleExitRoom}
-              className="btn-neon-secondary px-4 py-2 flex items-center gap-2"
-            >
-              <X className="w-4 h-4" />
-              Exit Room
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Game View */}
-          <div className="lg:col-span-2">
-            <div className="card-neon p-0 overflow-hidden">
-              {/* Video Stream */}
-              <div className="relative aspect-[4/3] bg-black">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted={isMuted}
-                  className="w-full h-full object-contain"
-                />
-                
-                {gameState !== GameState.PLAYING && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                    <div className="text-center p-6 max-w-md">
-                      {/* Error message */}
-                      {errorMessage && (
-                        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg backdrop-blur-sm">
-                          <p className="text-red-400">{errorMessage}</p>
-                        </div>
+            {gameState !== GameState.PLAYING && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                <div className="text-center p-6 max-w-md">
+                  {/* Error message */}
+                  {errorMessage && (
+                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg backdrop-blur-sm">
+                      <p className="text-red-400">{errorMessage}</p>
+                    </div>
+                  )}
+                  
+                  {/* Success message */}
+                  {successMessage && (
+                    <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg backdrop-blur-sm">
+                      <p className="text-green-400">{successMessage}</p>
+                    </div>
+                  )}
+                  
+                  {/* Machine occupation status */}
+                  {gameState === GameState.OTHER_PLAYING && !isWaitingForServer && (
+                    <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg backdrop-blur-sm">
+                      <p className="text-yellow-400">
+                        {currentPlayerName ? `${currentPlayerName} is playing` : 'Machine is currently occupied'}
+                      </p>
+                      {timeRemaining > 0 && (
+                        <p className="text-yellow-400 text-sm mt-1">
+                          Time remaining: {timeRemaining}s
+                        </p>
                       )}
-                      
-                      {/* Success message */}
-                      {successMessage && (
-                        <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg backdrop-blur-sm">
-                          <p className="text-green-400">{successMessage}</p>
+                      {isWaitingForServer ? (
+                        <div className="flex items-center justify-center mt-2">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neon-cyan mr-2"></div>
+                          <span className="text-neon-cyan text-sm">Joining queue...</span>
                         </div>
-                      )}
-                      
-                      {/* Machine occupation status */}
-                      {gameState === GameState.OTHER_PLAYING && !isWaitingForServer && (
-                        <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg backdrop-blur-sm">
-                          <p className="text-yellow-400">
-                            {currentPlayerName ? `${currentPlayerName} is playing` : 'Machine is currently occupied'}
-                          </p>
-                          {timeRemaining > 0 && (
-                            <p className="text-yellow-400 text-sm mt-1">
-                              Time remaining: {timeRemaining}s
-                            </p>
-                          )}
-                          {isWaitingForServer ? (
-                            <div className="flex items-center justify-center mt-2">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neon-cyan mr-2"></div>
-                              <span className="text-neon-cyan text-sm">Joining queue...</span>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={handleJoinQueue}
-                              className="btn-neon mt-2 px-6 py-2 text-sm"
-                            >
-                              Join Queue
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Queue position */}
-                      {gameState === GameState.IN_QUEUE && (
-                        <div className="mb-4 p-4 bg-cyan-500/20 border-2 border-cyan-500 rounded-lg backdrop-blur-sm animate-pulse-slow">
-                          <p className="text-cyan-400 text-xl font-bold mb-2">
-                            YOU ARE {queuePosition}/{queueSize} IN QUEUE
-                          </p>
-                          <p className="text-cyan-300 text-sm mb-3">Please wait for your turn...</p>
-                          <button
-                            onClick={handleLeaveQueue}
-                            className="btn-neon-secondary px-4 py-1 text-sm"
-                          >
-                            Leave Queue
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Start button or loading state - only show in IDLE state */}
-                      {gameState === GameState.IDLE && (
-                        isWaitingForServer ? (
-                          <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mb-4"></div>
-                            <p className="text-neon-cyan">Requesting game start...</p>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-neon-cyan mb-4">Ready to play?</p>
-                            <button
-                              onClick={handleStartGame}
-                              className="btn-neon px-8 py-3"
-                            >
-                              Start Game
-                            </button>
-                          </>
-                        )
+                      ) : (
+                        <button
+                          onClick={handleJoinQueue}
+                          className="btn-neon mt-2 px-6 py-2 text-sm"
+                        >
+                          Join Queue
+                        </button>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Game Info Bar */}
-              <div className="p-4 bg-dark-surface flex justify-between items-center">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-5 h-5 text-yellow-500" />
-                    <span className="text-sm">Cost: {machineData?.price || roomInfo?.price || 0} coins</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Timer className="w-5 h-5 text-neon-cyan" />
-                    <span className="text-sm">{timeRemaining}s</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-neon-pink" />
-                    <span className="text-sm">{Math.max(0, playerCount - 1)} watching</span>
-                  </div>
-                  {queuePosition > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-yellow-400">Queue Position: {queuePosition}</span>
+                  )}
+                  
+                  {/* Queue position */}
+                  {gameState === GameState.IN_QUEUE && (
+                    <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-center mt-1' : ''}`}>
+                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400`}>Queue Position: {queuePosition}</span>
                     </div>
+                  )}
+                  
+                  {/* Start button or loading state - only show in IDLE state */}
+                  {gameState === GameState.IDLE && (
+                    isWaitingForServer ? (
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mb-4"></div>
+                        <p className="text-neon-cyan">Requesting game start...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-neon-cyan mb-4">Ready to play?</p>
+                        <button
+                          onClick={handleStartGame}
+                          className="btn-neon px-8 py-3"
+                        >
+                          Start Game
+                        </button>
+                      </>
+                    )
                   )}
                 </div>
               </div>
-            </div>
-            
-            {/* How to Play Section - Under video and control area */}
-            <HowToPlay 
-              gameName={machineData?.gameName || roomInfo?.gameName}
-              machineName={machineData?.name || roomInfo?.machineName}
-              price={machineData?.price || roomInfo?.price || 10}
-            />
+            )}
           </div>
-
-          {/* Controls */}
-          <div className="lg:col-span-1">
-            <div className="card-neon p-6">
-              <h2 className="text-xl font-bold mb-6 text-neon-cyan">Controls</h2>
-              
-              {/* Camera Switch Button */}
-              <button
-                onClick={handleSwitchCamera}
-                disabled={!isConnected || isVideoLoading}
-                className="w-full mb-6 px-4 py-3 bg-dark-surface hover:bg-neon-purple/20 
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         rounded-lg border border-neon-purple/50 
-                         flex items-center justify-center gap-3 transition-all
-                         hover:border-neon-purple hover:shadow-neon-purple"
-              >
-                <Camera className="w-5 h-5 text-neon-purple" />
-                <span className="text-neon-purple font-medium">
-                  {currentCamera === 0 ? 'Switch to Side View' : 'Switch to Front View'}
-                </span>
-                <SwitchCamera className="w-5 h-5 text-neon-purple" />
-              </button>
-              
-              {/* Game Controls - Extensible Joystick System */}
-              <GameControls
-                machineName={machineData?.gameName || roomInfo?.gameName || machineData?.name || roomInfo?.machineName}
-                startContinuousMove={startContinuousMove}
-                stopContinuousMove={stopContinuousMove}
-                handleMove={handleMove}
-                disabled={gameState !== GameState.PLAYING || !iAmPlaying}
-              />
-              
-              {/* Instructions */}
-              <div className="mt-6 p-4 bg-dark-surface/50 rounded-lg">
-                <p className="text-sm text-gray-400">
-                  Use arrow keys to move the claw. Press CATCH to grab prizes!
-                </p>
+          
+          {/* Game Info Bar - Responsive */}
+          <div className={`${isMobile ? 'p-3' : 'p-4'} bg-dark-surface flex ${isMobile ? 'flex-col gap-2' : 'justify-between items-center'}`}>
+            <div className={`flex ${isMobile ? 'justify-between w-full' : 'items-center gap-6'}`}>
+              <div className="flex items-center gap-1 md:gap-2">
+                <Coins className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-yellow-500`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>{machineData?.price || roomInfo?.price || 0} coins</span>
               </div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <Timer className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-neon-cyan`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>{timeRemaining}s</span>
+              </div>
+              <div className="flex items-center gap-1 md:gap-2">
+                <Users className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-neon-pink`} />
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>{Math.max(0, playerCount - 1)} watching</span>
+              </div>
+            </div>
+            {queuePosition > 0 && (
+              <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-center mt-1' : ''}`}>
+                <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400`}>Queue Position: {queuePosition}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* How to Play Section - Responsive */}
+        {!isMobile && (
+          <HowToPlay 
+            gameName={machineData?.gameName || roomInfo?.gameName}
+            machineName={machineData?.name || roomInfo?.machineName}
+            price={machineData?.price || roomInfo?.price || 10}
+          />
+        )}
+      </div>
+
+      {/* Desktop Controls - Hidden on mobile */}
+      {!isMobile && (
+        <div className="lg:col-span-1">
+          <div className="card-neon p-6">
+            <h2 className="text-xl font-bold mb-6 text-neon-cyan">Controls</h2>
+            
+            {/* Camera Switch Button */}
+            <button
+              onClick={handleSwitchCamera}
+              disabled={!isConnected || isVideoLoading}
+              className="w-full mb-6 px-4 py-3 bg-dark-surface hover:bg-neon-purple/20 
+                       disabled:opacity-50 disabled:cursor-not-allowed
+                       rounded-lg border border-neon-purple/50 
+                       flex items-center justify-center gap-3 transition-all
+                       hover:border-neon-purple hover:shadow-neon-purple"
+            >
+              <Camera className="w-5 h-5 text-neon-purple" />
+              <span className="text-neon-purple font-medium">
+                {currentCamera === 0 ? 'Switch to Side View' : 'Switch to Front View'}
+              </span>
+              <SwitchCamera className="w-5 h-5 text-neon-purple" />
+            </button>
+            
+            {/* Game Controls - Extensible Joystick System */}
+            <GameControls
+              machineName={machineData?.gameName || roomInfo?.gameName || machineData?.name || roomInfo?.machineName}
+              startContinuousMove={startContinuousMove}
+              stopContinuousMove={stopContinuousMove}
+              handleMove={handleMove}
+              disabled={gameState !== GameState.PLAYING || !iAmPlaying}
+            />
+            
+            {/* Instructions */}
+            <div className="mt-6 p-4 bg-dark-surface/50 rounded-lg">
+              <p className="text-sm text-gray-400">
+                Use arrow keys to move the claw. Press CATCH to grab prizes!
+              </p>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Game Result Modal */}
-      <GameResultModal 
-        notification={gameNotifications.currentNotification as WawaResultNotification}
-        onClose={gameNotifications.clearCurrentNotification}
-        onPlayAgain={handleStartGame}
-      />
-
-      {/* Floating Coin Change Notification */}
-      <FloatingCoinNotification 
-        change={coinNotifications.notification?.change || null}
-        onComplete={coinNotifications.clearNotification}
-      />
+      )}
     </div>
-  )
+  </div>
+
+  {/* Game Result Modal */}
+  <GameResultModal 
+    notification={gameNotifications.currentNotification as WawaResultNotification}
+    onClose={gameNotifications.clearCurrentNotification}
+    onPlayAgain={handleStartGame}
+  />
+
+  {/* Floating Coin Change Notification */}
+  <FloatingCoinNotification 
+    change={coinNotifications.notification?.change || null}
+    onComplete={coinNotifications.clearNotification}
+  />
+  
+  {/* Mobile Controls - Fixed at bottom */}
+  {isMobile && (
+    <MobileGameControls
+      startContinuousMove={startContinuousMove}
+      stopContinuousMove={stopContinuousMove}
+      handleMove={handleMove}
+      onSwitchCamera={handleSwitchCamera}
+      disabled={gameState !== GameState.PLAYING || !iAmPlaying}
+      currentCamera={currentCamera}
+    />
+  )}
+</div>
+)
 }
