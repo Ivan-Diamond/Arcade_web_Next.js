@@ -18,7 +18,7 @@ export async function GET(
     // Fetch user by ID using the same endpoint as leaderboard
     const userResponse = await fetch(`http://206.81.25.143:9991/uaa/v1/getUserById?userId=${userId}`, {
       headers: {
-        'Authorization': `Bearer ${session.jwt}`,
+        'Authorization': `Bearer ${session.user?.jwt || ''}`,
         'Content-Type': 'application/json',
       },
     })

@@ -6,12 +6,12 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.jwt) {
+    if (!session?.user?.jwt) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('Fetching lobby data from:', `http://206.81.25.143:9991/app/lobby`);
-    console.log('Using JWT:', session.jwt ? 'Present' : 'Missing');
+    console.log('Using JWT:', session.user?.jwt ? 'Present' : 'Missing');
 
     // Try different lobby endpoints that might exist
     const endpoints = [
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         console.log(`Trying endpoint: ${endpoint}`);
         response = await fetch(endpoint, {
           headers: {
-            'Authorization': `Bearer ${session.jwt}`,
+            'Authorization': `Bearer ${session.user?.jwt || ''}`,
             'Content-Type': 'application/json',
           },
         });

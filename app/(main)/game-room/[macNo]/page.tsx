@@ -113,7 +113,7 @@ export default function GameRoomPage() {
   useEffect(() => {
     // Fetch machine data and use camera URLs from it
     const fetchAndInitialize = async () => {
-      if (!session?.jwt) return
+      if (!session?.user?.jwt) return
       
       try {
         const data = await roomService.getLobbyData()
@@ -164,7 +164,11 @@ export default function GameRoomPage() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    if (!session?.user?.id || !(session as any).socketPassword) {
+    console.log('Session data:', session)
+    console.log('User ID:', session?.user?.id)
+    console.log('Socket password:', (session as any)?.user?.socketPassword)
+    
+    if (!session?.user?.id || !(session as any)?.user?.socketPassword) {
       console.log('Session not ready, skipping socket connection')
       return
     }
@@ -455,7 +459,7 @@ export default function GameRoomPage() {
     }
 
     // Connect to server
-    client.connect(session.user?.id || '', (session as any).socketPassword, macNo)
+    client.connect(session.user?.id || '', (session as any)?.user?.socketPassword, macNo)
 
     return () => {
       // Cleanup event listeners

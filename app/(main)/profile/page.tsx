@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 
 export default function ProfilePage() {
   const { data: session } = useSession()
-  const { user: authUser } = useAuthStore()
+  const { user: authUser, logout } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'overview' | 'stats'>('overview')
+  const router = useRouter()
 
   // Use real user data from session
   const user = {
@@ -22,9 +24,14 @@ export default function ProfilePage() {
     level: (authUser as any)?.level || 1, // Fixed TypeScript error
   }
 
-  const handleLogout = () => {
-    // TODO: Implement logout
-    console.log('Logout clicked')
+  const handleLogout = async () => {
+    // Clear visitor-related localStorage items
+    localStorage.removeItem('isVisitorAccount');
+    localStorage.removeItem('visitorUsername');
+    localStorage.removeItem('upgradingFromVisitor');
+    
+    await logout()
+    router.push('/login')
   }
 
   const handleChangeName = () => {

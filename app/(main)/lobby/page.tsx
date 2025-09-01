@@ -25,7 +25,7 @@ export default function LobbyPage() {
 
   useEffect(() => {
     const fetchLobbyData = async () => {
-      if (!session?.jwt) return;
+      if (!session?.user?.jwt) return;
       
       setIsLoading(true);
       setError(null);

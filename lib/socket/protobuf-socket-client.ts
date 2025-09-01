@@ -60,9 +60,145 @@ class ProtobufSocketClient {
 
   private async loadProto() {
     try {
-      // Load proto definition
-      const response = await fetch('/app/proto/CustomerNettyProto.proto')
-      const protoContent = await response.text()
+      // Embed protobuf definition directly to avoid path issues
+      const protoContent = `
+syntax = "proto3";
+
+message DataPackage{
+     PackageType packageType = 1;
+     oneof Package{
+          LoginMessage loginMessage = 2;
+          SendMessageToRoomMate sendMessageToRoomMate = 3;
+         StartGameMessage startGameMessage = 4;
+         ArmMoveMessage armMoveMessage = 5;
+         HeartMessage heartMessage = 6;
+         GameResultMessage gameResultMessage = 7;
+       BallCountMessage ballCountMessage = 8;
+         ScoreMessage scoreMessage = 9;
+         EnterRoomMessage enterRoomMessage = 10;
+         ExitRoomMessage exitRoomMessage = 11;
+         NumberOfPeopleInTheRoomMessage numberOfPeopleInTheRoomMessage =12;
+         WawaMoveMessage wawaMoveMessage= 13;
+         WawaResultMessage wawaResultMessage=14;
+         PlayGameOrder playGameOrder=15;
+     }
+}
+
+enum PackageType{
+     LOGIN = 0;
+    SENDMESSAGETOROOMMATE = 1;
+    STARTGAMEMESSAGE = 2;
+    ARMMOVEMESSAGE = 3;
+    HEARTMESSAGE = 4;
+    GAMERESULTMESSAGE = 5;
+    BALLCOUNTMESSAGE =6;
+    SCOREMESSAGE = 7;
+    ENTERROOMMESSAGE = 8;
+    EXITROOMMESSAGE = 9;
+    NUMBEROfPEOPLEINTHEROOMMESSAGE = 10;
+    WAWAMOVEMESSAGE=11;
+    WAWARESULTMESSAGE=12;
+    PLAYGAMEORDER=13;
+}
+
+message LoginMessage {
+     int64 userID = 1;
+    string tempPasswd = 2;
+    bool isServerSide = 3;
+    bool loginResult =4;
+}
+
+message SendMessageToRoomMate{
+     int64 senderUserID = 1;
+    string roomID = 2;
+     string msgData = 3;
+  string senderUserName = 4;
+}
+
+message StartGameMessage {
+  int64 userID = 1;
+  string macNo = 2;
+  bool isServerSide = 3;
+  int32 startGameResult = 4;
+  string des = 5;
+  int32 ballCount = 6;
+  int64 totalGold = 7;
+  int64 totalScore = 8;
+  int32 gameDuring = 9;
+}
+
+message ArmMoveMessage {
+  int64 userID = 1;
+  string macNo = 2;
+    int32  data = 3;
+}
+
+message HeartMessage {
+  int64 userID = 1;
+}
+
+message GameResultMessage {
+  int64 userID = 1;
+  string macNo = 2;
+  int32 gameFinishFlag =3;
+  int64 totalGold = 4;
+  int64 totalScore = 5;
+}
+
+message BallCountMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int32 ballCount = 3;
+}
+
+message ScoreMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int32 score = 3;
+  int64 inCome = 4;
+}
+
+message EnterRoomMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  int64 totalGold = 3;
+  int64 totalScore = 4;
+  bool isServerSide = 5;
+  string webrtcClientID = 6;
+  bool isMeOperation = 7;
+  int32 playTimes=8;
+}
+
+message ExitRoomMessage{
+  int64 userID = 1;
+  string macNo = 2;
+  bool isServerSide = 3;
+  string webrtcClientID = 4;
+}
+
+message NumberOfPeopleInTheRoomMessage{
+  string macNo = 1;
+  int32 numberOfPeopleInTheRoom = 2;
+}
+
+message WawaMoveMessage {
+  int64 userID = 1;
+  string macNo = 2;
+  int32  data = 3;
+}
+
+message WawaResultMessage {
+  int64 userID = 1;
+  string macNo = 2;
+  int32  data = 3;
+}
+
+message PlayGameOrder {
+  int64 userID = 1;
+  string macNo = 2;
+  int32 order = 3;
+}
+`
       
       this.root = protobuf.parse(protoContent).root
       this.DataPackage = this.root.lookupType('DataPackage')

@@ -15,8 +15,12 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Hash the password with MD5
-        const passwordHash = crypto.createHash('md5').update(credentials.password).digest('hex')
+        // Check if this is a visitor account (don't hash visitor passwords)
+        const isVisitor = credentials.username.toLowerCase().startsWith('visitor') || 
+                         credentials.username.toLowerCase().startsWith('guest')
+        
+        // Hash the password with MD5 only for non-visitor accounts
+        const password = isVisitor ? credentials.password : crypto.createHash('md5').update(credentials.password).digest('hex')
         
         try {
           const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msaarcade.com/game/uaa'
@@ -24,14 +28,15 @@ export const authOptions: NextAuthOptions = {
           // Send as URL-encoded form data (application/x-www-form-urlencoded)
           const params = new URLSearchParams()
           params.append('username', credentials.username)
-          params.append('password', passwordHash)
+          params.append('password', password)
           
           const url = `${API_BASE_URL}/oauth/customer_login`
           
           console.log('Login request:', {
             url: url,
             username: credentials.username,
-            passwordHash: passwordHash.substring(0, 8) + '...',
+            password: password.substring(0, 8) + '...',
+            isVisitor: isVisitor,
             body: params.toString()
           })
           
@@ -124,17 +129,23 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     session: async ({ session, token }) => {
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: token.id as string,
-          username: token.username as string,
-        },
-        socketPassword: token.socketPassword as string,
-        jwt: token.jwt as string,
-        coins: token.coins as number,
+      // Add user data to session from JWT token
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.name = token.username as string;
+        session.user.jwt = token.jwt as string;
+        session.user.socketPassword = token.socketPassword as string;
+        session.user.coins = token.coins as number;
+        (session.user as any).integral = token.integral as number;
+        (session.user as any).avatar = token.avatar as string;
+        (session.user as any).fullName = token.fullName as string;
+        
+        // Check if this is a visitor account - use the actual account name from token
+        const username = (token.username as string || '');
+        session.user.isVisitor = username.toLowerCase().startsWith('visitor') || 
+                                username.toLowerCase().startsWith('guest');
       }
+      return session;
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

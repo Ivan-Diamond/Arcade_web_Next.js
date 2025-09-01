@@ -1,22 +1,38 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { User, Lock, Mail, ArrowRight, Zap, Phone } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { UserPlus, Info, Mail, Lock, ArrowRight } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast'
 import crypto from 'crypto-js'
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isUpgradingVisitor, setIsUpgradingVisitor] = useState(false);
+  const [visitorUsername, setVisitorUsername] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
   })
+
+  useEffect(() => {
+    // Check if user is upgrading from visitor account
+    const upgradingFrom = localStorage.getItem('upgradingFromVisitor');
+    if (upgradingFrom) {
+      setIsUpgradingVisitor(true);
+      setVisitorUsername(upgradingFrom);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,16 +86,18 @@ export default function RegisterPage() {
   const autoLogin = async (username: string, passwordHash: string) => {
     try {
       // Use NextAuth signIn for consistency with login page
-      const { signIn } = await import('next-auth/react')
       const result = await signIn('credentials', {
         username: username,
         password: formData.password, // Use original password, not hash
         redirect: false,
       })
 
-      if (result?.error) {
-        console.error('Auto-login failed:', result.error)
-        router.push('/login')
+      if (result?.ok) {
+        // Clear visitor upgrade flags
+        localStorage.removeItem('upgradingFromVisitor');
+        localStorage.removeItem('isVisitorAccount');
+        localStorage.removeItem('visitorUsername');
+        router.push('/lobby');
       } else {
         toast.success('Logged in successfully!')
         router.push('/lobby')
@@ -113,10 +131,30 @@ export default function RegisterPage() {
               transition={{ delay: 0.2, type: "spring" }}
               className="inline-block mb-4"
             >
-              <Zap className="w-16 h-16 text-neon-pink mx-auto" />
+              <UserPlus className="w-16 h-16 text-neon-pink mx-auto" />
             </motion.div>
-            <h1 className="text-3xl font-bold gradient-text mb-2">Join the Arcade</h1>
-            <p className="text-gray-400">Create your account to start playing</p>
+            <h1 className="text-3xl font-bold gradient-text mb-2">
+              {isUpgradingVisitor ? 'Upgrade Your Guest Account' : 'Create Your Account'}
+            </h1>
+            <p className="text-center text-gray-400 mb-8">
+              {isUpgradingVisitor 
+                ? 'Convert your guest account to save progress and unlock features!'
+                : 'Join the arcade and start playing!'}
+            </p>
+            
+            {isUpgradingVisitor && visitorUsername && (
+              <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <div className="text-sm text-blue-300">
+                    <p className="font-semibold mb-1">Upgrading from Guest Account</p>
+                    <p className="text-blue-300/80">
+                      Your guest account ({visitorUsername}) will be upgraded. All your progress and coins will be saved!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form */}
@@ -126,7 +164,7 @@ export default function RegisterPage() {
                 Username
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neon-pink" />
+                <UserPlus className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neon-pink" />
                 <input
                   type="text"
                   value={formData.username}

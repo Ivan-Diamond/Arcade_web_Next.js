@@ -1,10 +1,123 @@
-'use client'
+'use client';
 
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import { Gamepad2, Users, Trophy, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession, signIn } from 'next-auth/react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Gamepad2, Trophy, Users, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function HomePage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [isCreatingVisitor, setIsCreatingVisitor] = useState(false);
+  const [hasAttemptedVisitor, setHasAttemptedVisitor] = useState(false);
+
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      // If user is already authenticated, redirect to lobby immediately
+      if (status === 'authenticated' && session) {
+        router.push('/lobby');
+        return;
+      }
+
+      // If unauthenticated and haven't attempted visitor creation yet
+      if (status === 'unauthenticated' && !hasAttemptedVisitor && !isCreatingVisitor) {
+        // Check if user has opted out of auto-visitor (stored in localStorage)
+        const hasOptedOut = localStorage.getItem('optOutAutoVisitor') === 'true';
+        
+        if (!hasOptedOut) {
+          await createVisitorAccount();
+        }
+      }
+    };
+
+    if (status !== 'loading') {
+      checkAuthAndRedirect();
+    }
+  }, [status, session, hasAttemptedVisitor, isCreatingVisitor]);
+
+  const createVisitorAccount = async () => {
+    setIsCreatingVisitor(true);
+    setHasAttemptedVisitor(true);
+
+    try {
+      // Call backend API directly since production API routes have issues
+      const response = await fetch('https://msaarcade.com/game/uaa/v1/createNewVisitor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.code === 20000 && data.data?.username && data.data?.password) {
+        // Use NextAuth signIn with the visitor credentials
+        const result = await signIn('credentials', {
+          username: data.data.username,
+          password: data.data.password,
+          redirect: false,
+        });
+
+        if (result?.ok) {
+          // Store visitor status in localStorage for future reference
+          localStorage.setItem('isVisitorAccount', 'true');
+          localStorage.setItem('visitorUsername', data.data.username);
+          
+          toast.success('Welcome! You\'re playing as a guest.');
+          router.push('/lobby');
+        } else {
+          console.error('Failed to sign in with visitor account');
+          toast.error('Failed to create guest session. Please try logging in.');
+        }
+      } else {
+        console.error('Failed to create visitor account:', data);
+        // Don't show error toast - just show the welcome page
+      }
+    } catch (error) {
+      console.error('Error creating visitor account:', error);
+      // Don't show error toast - just show the welcome page
+    } finally {
+      setIsCreatingVisitor(false);
+    }
+  };
+
+  const handlePlayAsGuest = async () => {
+    localStorage.removeItem('optOutAutoVisitor');
+    await createVisitorAccount();
+  };
+
+  const handleLoginClick = () => {
+    // User explicitly wants to login, so opt them out of auto-visitor for this session
+    localStorage.setItem('optOutAutoVisitor', 'true');
+    router.push('/login');
+  };
+
+  const handleRegisterClick = () => {
+    // User explicitly wants to register, so opt them out of auto-visitor for this session
+    localStorage.setItem('optOutAutoVisitor', 'true');
+    router.push('/register');
+  };
+
+  // Show loading state while checking auth or creating visitor
+  if (status === 'loading' || (status === 'unauthenticated' && isCreatingVisitor)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-white mx-auto mb-4" />
+          <p className="text-white text-lg">
+            {isCreatingVisitor ? 'Setting up your game session...' : 'Loading...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show welcome page only if not authenticated and not creating visitor
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -69,17 +182,40 @@ export default function HomePage() {
           transition={{ delay: 0.6 }}
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
-          <Link href="/login">
-            <button className="btn-neon btn-neon-cyan px-8 py-4 text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Start Playing
-            </button>
-          </Link>
-          <Link href="/register">
-            <button className="btn-neon btn-neon-purple px-8 py-4 text-lg">
-              Create Account
-            </button>
-          </Link>
+          <Button
+            size="lg"
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-6 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+            onClick={handlePlayAsGuest}
+            disabled={isCreatingVisitor}
+          >
+            {isCreatingVisitor ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <Gamepad2 className="mr-2 h-5 w-5" />
+                Play as Guest
+              </>
+            )}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-2 border-white/20 bg-white/10 hover:bg-white/20 text-white px-8 py-6 text-lg rounded-full backdrop-blur-sm transition-all duration-300 transform hover:scale-105"
+            onClick={handleLoginClick}
+          >
+            Login
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-2 border-white/20 bg-white/10 hover:bg-white/20 text-white px-8 py-6 text-lg rounded-full backdrop-blur-sm transition-all duration-300 transform hover:scale-105"
+            onClick={handleRegisterClick}
+          >
+            Sign Up
+          </Button>
         </motion.div>
 
         {/* Stats */}

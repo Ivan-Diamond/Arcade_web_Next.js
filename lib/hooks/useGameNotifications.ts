@@ -40,8 +40,8 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
     if (!isInitializedRef.current) {
       try {
         const session = await getSession()
-        if (session?.jwt) {
-          const refreshResult = await userService.refreshUserData(session.jwt as string)
+        if (session?.user?.jwt) {
+          const refreshResult = await userService.refreshUserData(session.user.jwt as string)
           if (refreshResult.success && refreshResult.data) {
             previousCoinsRef.current = refreshResult.data.coins
             isInitializedRef.current = true
@@ -86,8 +86,8 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
     // Fetch updated user data including coins after game result
     try {
       const session = await getSession()
-      if (session?.jwt) {
-        const refreshResult = await userService.refreshUserData(session.jwt as string)
+      if (session?.user?.jwt) {
+        const refreshResult = await userService.refreshUserData(session.user.jwt as string)
         if (refreshResult.success && refreshResult.data) {
           console.log('Updated coins from server:', refreshResult.data.coins)
           const newCoins = refreshResult.data.coins
@@ -165,8 +165,8 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
     // Refresh coin balance when game starts (deduct coins for playing)
     try {
       const session = await getSession()
-      if (session?.jwt) {
-        const refreshResult = await userService.refreshUserData(session.jwt as string)
+      if (session?.user?.jwt) {
+        const refreshResult = await userService.refreshUserData(session.user.jwt as string)
         if (refreshResult.success && refreshResult.data) {
           console.log('Updated coins after game start:', refreshResult.data.coins)
           const newCoins = refreshResult.data.coins

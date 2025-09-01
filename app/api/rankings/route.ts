@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`http://206.81.25.143:9991/uaa/v1/getWawaWinGames?${params}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${session.jwt}`,
+        'Authorization': `Bearer ${session.user?.jwt || ''}`,
         'Content-Type': 'application/json',
       },
     })
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
               console.log(`Starting fetch for userId: ${user.userId}`)
               const userResponse = await fetch(`http://206.81.25.143:9991/uaa/v1/getUserById?userId=${user.userId}`, {
                 headers: {
-                  'Authorization': `Bearer ${session.jwt}`,
+                  'Authorization': `Bearer ${session.user?.jwt || ''}`,
                   'Content-Type': 'application/json',
                 },
               })

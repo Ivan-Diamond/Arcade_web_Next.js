@@ -112,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
             const user: User = {
               id: session.user.id || '',
               username: session.user.username || session.user.name || '',
-              coins: (session as any).coins || 0,
+              coins: (session.user as any).coins || 0,
               wins: 0,
               gamesPlayed: 0,
               winRate: 0,
