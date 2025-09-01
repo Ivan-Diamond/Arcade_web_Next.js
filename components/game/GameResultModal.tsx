@@ -12,6 +12,8 @@ interface GameResultModalProps {
 }
 
 export default function GameResultModal({ notification, onClose, onPlayAgain }: GameResultModalProps) {
+  console.log('GameResultModal received notification:', notification)
+  
   useEffect(() => {
     if (notification?.isSuccess) {
       // Play win sound

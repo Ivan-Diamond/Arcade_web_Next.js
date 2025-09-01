@@ -59,6 +59,7 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
     
     // Determine if the player won (data >= 1 means success)
     const isWin = result.data >= 1
+    console.log('Win status:', isWin, 'Data value:', result.data)
     
     // Extract ball color if available and valid
     let ballColor = undefined
@@ -78,6 +79,7 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
       ballColor: ballColor
     }
     
+    console.log('Setting current notification:', notification)
     setCurrentNotification(notification)
     setNotificationHistory(prev => [...prev, notification])
     

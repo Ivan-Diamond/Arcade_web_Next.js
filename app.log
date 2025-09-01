@@ -1,0 +1,41 @@
+nohup: ignoring input
+
+> msa_arcade@0.1.0 start
+> next start -H 0.0.0.0 -p 3000
+
+  ▲ Next.js 14.2.32
+  - Local:        http://localhost:3000
+  - Network:      http://0.0.0.0:3000
+
+ ✓ Starting...
+ ✓ Ready in 455ms
+Fetching lobby data from: http://206.81.25.143:9991/app/lobby
+Using JWT: Present
+Trying endpoint: http://206.81.25.143:9991/uaa/app/lobby
+Success with endpoint: http://206.81.25.143:9991/uaa/app/lobby
+Lobby API response status: 200
+Lobby API response data: {
+  success: true,
+  code: 20000,
+  message: '成功',
+  data: {
+    banners: [ 'https://www.ruyuan.live/imgs/xbgame/8_1744105588999.jpg' ],
+    categories: [
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object],
+      [Object], [Object]
+    ],
+    machines: [
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object], [Object],
+      [Object], [Object]
+    ]
+  },
+  timestamp: 1756479170118
+}
