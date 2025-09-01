@@ -13,7 +13,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     username: '',
-    phoneNumber: '',
+    email: '',
     password: '',
     confirmPassword: '',
   })
@@ -26,8 +26,10 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters')
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address')
       return
     }
 
@@ -37,9 +39,10 @@ export default function RegisterPage() {
       // Hash the password with MD5
       const passwordHash = crypto.MD5(formData.password).toString()
       
-      // Call the registration API
+      // Call the registration API using the same base URL as login
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msaarcade.com/game/uaa'
       const response = await fetch(
-        `http://206.81.25.143:9991/v1/customer_register?username=${formData.username}&password=${passwordHash}&phoneNumber=${formData.phoneNumber || ''}`,
+        `${API_BASE_URL}/v1/customer_register?username=${formData.username}&password=${passwordHash}&email=${formData.email}`,
         {
           method: 'POST',
           headers: {
@@ -52,7 +55,8 @@ export default function RegisterPage() {
       
       if (data.code === 20000) {
         toast.success('Account created successfully!')
-        router.push('/login')
+        // Auto-login after successful registration
+        await autoLogin(formData.username, passwordHash)
       } else {
         toast.error(data.message || 'Registration failed')
       }
@@ -60,6 +64,29 @@ export default function RegisterPage() {
       toast.error('Registration failed')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const autoLogin = async (username: string, passwordHash: string) => {
+    try {
+      // Use NextAuth signIn for consistency with login page
+      const { signIn } = await import('next-auth/react')
+      const result = await signIn('credentials', {
+        username: username,
+        password: formData.password, // Use original password, not hash
+        redirect: false,
+      })
+
+      if (result?.error) {
+        console.error('Auto-login failed:', result.error)
+        router.push('/login')
+      } else {
+        toast.success('Logged in successfully!')
+        router.push('/lobby')
+      }
+    } catch (error) {
+      console.error('Auto-login failed:', error)
+      router.push('/login')
     }
   }
 
@@ -113,16 +140,17 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Phone Number (Optional)
+                Email Address
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neon-pink" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neon-pink" />
                 <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input-neon pl-10"
-                  placeholder="Your phone number"
+                  placeholder="your.email@example.com"
+                  required
                 />
               </div>
             </div>
@@ -138,7 +166,7 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="input-neon pl-10"
-                  placeholder="Min 6 characters"
+                  placeholder="Enter your password"
                   required
                 />
               </div>
