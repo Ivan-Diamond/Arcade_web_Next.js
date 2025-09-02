@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { userService } from '@/lib/api/user-service'
 import { getSession } from 'next-auth/react'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 // Ball color mapping based on result data - 1
 const BALL_COLORS: Record<number, { name: string; color: string }> = {
@@ -77,6 +78,22 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
       userId: result.userID || userId,
       macNo: result.macNo || '',
       ballColor: ballColor
+    }
+    
+    // Track game result event
+    amplitudeService.trackGameEvent('GAME_ENDED', {
+      machine_id: result.macNo || '',
+      result: isWin ? 'win' : 'loss',
+      coins_won: isWin ? 10 : 0 // Adjust based on actual coins won
+    })
+    
+    // Track prize won if applicable
+    if (isWin) {
+      amplitudeService.trackGameEvent('PRIZE_WON', {
+        machine_id: result.macNo || '',
+        coins_won: 10, // Adjust based on actual coins won
+        prize_type: ballColor?.name
+      })
     }
     
     console.log('Setting current notification:', notification)
@@ -161,6 +178,9 @@ export function useGameNotifications(userId: string, onCoinChange?: (oldBalance:
 
   const handleGameStart = useCallback(async (result: any) => {
     console.log('Game start received:', result)
+    
+    // Track game start is already handled in game-room page
+    // This is just handling the coins update after game start
     
     // Refresh coin balance when game starts (deduct coins for playing)
     try {

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { useState } from 'react'
+import { amplitudeService } from '@/lib/analytics/amplitude'
+import { NAVIGATION_EVENTS } from '@/lib/analytics/events'
 import { MainNav } from '@/components/main-nav';
 import { UserInfo } from '@/components/user-info';
 import { Sidebar } from '@/components/sidebar';
@@ -40,6 +42,17 @@ export default function MainLayout({
     }
     initAuth()
   }, [])
+
+  // Track page views on route changes
+  useEffect(() => {
+    if (pathname && user) {
+      amplitudeService.trackNavigationEvent('PAGE_VIEWED', {
+        page_path: pathname,
+        page_name: pathname.split('/').pop() || 'home',
+        user_id: user.id
+      })
+    }
+  }, [pathname, user])
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated) {
@@ -105,7 +118,16 @@ export default function MainLayout({
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        onClick={() => setIsSidebarOpen(false)}
+                        onClick={() => {
+                          setIsSidebarOpen(false)
+                          // Track navigation click
+                          amplitudeService.trackNavigationEvent('NAV_ITEM_CLICKED', {
+                            from_page: pathname,
+                            to_page: item.href,
+                            nav_item: item.label,
+                            source: 'mobile_sidebar'
+                          })
+                        }}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                           isActive
                             ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan'

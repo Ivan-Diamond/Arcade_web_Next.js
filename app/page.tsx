@@ -8,12 +8,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Gamepad2, Trophy, Users, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { amplitudeService } from '@/lib/analytics/amplitude';
 
 export default function HomePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [isCreatingVisitor, setIsCreatingVisitor] = useState(false);
   const [hasAttemptedVisitor, setHasAttemptedVisitor] = useState(false);
+
+  // Track homepage view on mount
+  useEffect(() => {
+    amplitudeService.trackHomeEvent('LANDING_PAGE_VIEWED', {
+      source: 'direct'
+    });
+  }, []);
 
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
@@ -68,18 +76,41 @@ export default function HomePage() {
           localStorage.setItem('isVisitorAccount', 'true');
           localStorage.setItem('visitorUsername', data.data.username);
           
+          // Track successful visitor creation
+          amplitudeService.trackAuthEvent('VISITOR_CREATED', {
+            source: 'homepage',
+            auto: !hasAttemptedVisitor
+          });
+          
           toast.success('Welcome! You\'re playing as a guest.');
           router.push('/lobby');
         } else {
           console.error('Failed to sign in with visitor account');
+          
+          // Track visitor creation failure
+          amplitudeService.trackAuthEvent('VISITOR_CREATION_FAILED', {
+            source: 'homepage',
+            error_type: 'signin_failed'
+          });
+          
           toast.error('Failed to create guest session. Please try logging in.');
         }
       } else {
         console.error('Failed to create visitor account:', data);
+        // Track API failure
+        amplitudeService.trackAuthEvent('VISITOR_CREATION_FAILED', {
+          source: 'homepage',
+          error_type: 'api_error'
+        });
         // Don't show error toast - just show the welcome page
       }
     } catch (error) {
       console.error('Error creating visitor account:', error);
+      // Track exception
+      amplitudeService.trackAuthEvent('VISITOR_CREATION_FAILED', {
+        source: 'homepage',
+        error_type: 'exception'
+      });
       // Don't show error toast - just show the welcome page
     } finally {
       setIsCreatingVisitor(false);
@@ -87,17 +118,35 @@ export default function HomePage() {
   };
 
   const handlePlayAsGuest = async () => {
+    // Track play as guest click
+    amplitudeService.trackHomeEvent('CTA_CLICKED', {
+      cta_type: 'play_as_guest',
+      location: 'hero'
+    });
+    
     localStorage.removeItem('optOutAutoVisitor');
     await createVisitorAccount();
   };
 
   const handleLoginClick = () => {
+    // Track login button click
+    amplitudeService.trackHomeEvent('CTA_CLICKED', {
+      cta_type: 'login',
+      location: 'hero'
+    });
+    
     // User explicitly wants to login, so opt them out of auto-visitor for this session
     localStorage.setItem('optOutAutoVisitor', 'true');
     router.push('/login');
   };
 
   const handleRegisterClick = () => {
+    // Track register button click
+    amplitudeService.trackHomeEvent('CTA_CLICKED', {
+      cta_type: 'register',
+      location: 'hero'
+    });
+    
     // User explicitly wants to register, so opt them out of auto-visitor for this session
     localStorage.setItem('optOutAutoVisitor', 'true');
     router.push('/register');

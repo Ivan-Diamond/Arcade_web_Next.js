@@ -26,8 +26,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stream: null,
 
   joinRoom: (room) => {
-    // Track game start event
-    amplitudeService.trackGameStart(room.id, room.name, room.coinCost)
+    // Track room entry event
+    amplitudeService.trackGameEvent('ROOM_ENTERED', {
+      machine_id: room.id,
+      machine_name: room.name,
+      price: room.coinCost
+    })
     
     set({
       currentRoom: room,
@@ -86,7 +90,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const coinsWon = result === 'win' ? currentRoom.coinReward : 0
       
       // Track game end event
-      amplitudeService.trackGameEnd(currentRoom.id, result, coinsWon, duration)
+      amplitudeService.trackGameEvent('GAME_ENDED', {
+        machine_id: currentRoom.id,
+        result: result === 'lose' ? 'loss' : result,
+        coins_won: coinsWon,
+        duration: duration
+      })
       
       set({
         currentSession: {

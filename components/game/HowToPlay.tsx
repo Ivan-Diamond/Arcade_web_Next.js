@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Gamepad2, Coins, Target, Info } from 'lucide-react'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 interface HowToPlayProps {
   gameName?: string
@@ -172,7 +173,18 @@ export default function HowToPlay({ gameName, machineName, price = 10 }: HowToPl
     <div className="card-neon p-6 mt-6">
       {/* Header - Always visible */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => {
+          const newExpandedState = !isExpanded
+          setIsExpanded(newExpandedState)
+          
+          // Track rules toggle
+          if (newExpandedState) {
+            amplitudeService.trackGameEvent('HOW_TO_PLAY_OPENED', {
+              machine_name: machineName || gameName || 'Unknown',
+              source: 'direct'
+            })
+          }
+        }}
         className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
       >
         <div className="flex items-center gap-3">

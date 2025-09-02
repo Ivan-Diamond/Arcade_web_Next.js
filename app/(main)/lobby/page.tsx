@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { formatMachineName } from '@/lib/utils/formatMachineName'
 import { GameRewards } from '@/lib/utils/gameRewards'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 export default function LobbyPage() {
   const { data: session } = useSession()
@@ -20,8 +21,26 @@ export default function LobbyPage() {
   const [error, setError] = useState<string | null>(null)
 
   const handleEnterRoom = (macNo: string) => {
+    const machine = lobbyData?.machines?.find(m => m.macNo === macNo);
+    if (machine) {
+      amplitudeService.trackLobbyEvent('MACHINE_SELECTED', {
+        machine_id: macNo,
+        machine_name: machine.gameName,
+        price: machine.price,
+        queue_size: machine.inRoomCustomerAmount,
+        status: machine.netStatus === 1 ? 'online' : 'offline'
+      });
+    }
     router.push(`/game-room/${macNo}`);
   };
+
+  useEffect(() => {
+    // Track lobby view
+    amplitudeService.trackLobbyEvent('PAGE_LOADED', {
+      available_machines: 0,
+      user_coins: user?.coins || 0
+    });
+  }, []);
 
   useEffect(() => {
     const fetchLobbyData = async () => {
@@ -105,7 +124,15 @@ export default function LobbyPage() {
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              if (e.target.value) {
+                amplitudeService.trackLobbyEvent('MACHINE_SEARCHED', {
+                  query: e.target.value,
+                  results_count: filteredMachines.length
+                });
+              }
+            }}
             placeholder="Search machines..."
             className="input-neon pl-10 w-full"
           />
@@ -222,7 +249,14 @@ function MachineCard({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className="card-neon p-4 cursor-pointer"
-      onClick={() => onEnter(machine.macNo)}
+      onClick={() => {
+        amplitudeService.trackLobbyEvent('MACHINE_CARD_VIEWED', {
+          machine_id: machine.macNo,
+          machine_name: machine.gameName,
+          status: isOnline ? 'online' : 'offline'
+        });
+        onEnter(machine.macNo);
+      }}
     >
       {/* Machine Image */}
       <div className="relative w-full h-32 bg-dark-surface rounded-lg mb-3 overflow-hidden">

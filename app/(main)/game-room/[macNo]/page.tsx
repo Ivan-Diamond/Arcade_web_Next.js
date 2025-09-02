@@ -18,6 +18,7 @@ import { roomService } from '@/lib/api/room-service'
 import { GameControls } from '@/components/game-controls/GameControls'
 import { MobileGameControls } from '@/components/game-controls/MobileGameControls'
 import HowToPlay from '@/components/game/HowToPlay'
+import { amplitudeService } from '@/lib/analytics/amplitude'
 
 // Game states matching Flutter implementation
 enum GameState {
@@ -107,6 +108,12 @@ export default function GameRoomPage() {
   // Initialize coins on mount to prevent "undefined" notification
   useEffect(() => {
     gameNotifications.initializeCoins()
+    
+    // Track game room page view
+    amplitudeService.trackGameEvent('ROOM_ENTERED', {
+      machine_id: macNo,
+      source: 'lobby'
+    })
   }, []) // Empty deps, run once on mount
 
   // Initialize WebRTC with machine data
@@ -211,6 +218,12 @@ export default function GameRoomPage() {
     client.onOpen = () => {
       console.log('Connected to game server')
       setIsConnected(true)
+      
+      // Track WebRTC connection success
+      amplitudeService.trackGameEvent('WEBRTC_CONNECTED', {
+        machine_id: macNo
+      })
+      
       // Enter room after connection
       if (macNo) {
         client.enterRoom(macNo)
@@ -220,6 +233,11 @@ export default function GameRoomPage() {
     client.onClose = () => {
       console.log('Disconnected from game server')
       setIsConnected(false)
+      
+      // Track WebRTC disconnection
+      amplitudeService.trackGameEvent('WEBRTC_DISCONNECTED', {
+        machine_id: macNo
+      })
     }
 
     client.onPlayerCount = (count: number) => {
@@ -257,6 +275,14 @@ export default function GameRoomPage() {
       }
       
       const isSuccess = result.data !== 0 // Win if data > 0
+      
+      // Track game completion
+      amplitudeService.trackGameEvent('GAME_COMPLETED', {
+        machine_id: macNo,
+        result: isSuccess ? 'win' : 'loss',
+        win_amount: isSuccess ? result.data : 0,
+        play_duration: gameTimer
+      })
       
       // Immediately disable controls
       setIAmPlaying(false)
@@ -394,6 +420,15 @@ export default function GameRoomPage() {
         // Successfully started game
         console.log('Game approved! Starting game...')
         
+        // Track game started event
+        amplitudeService.trackGameEvent('GAME_STARTED', {
+          machine_id: macNo,
+          source: wasInQueue ? 'queue' : 'direct',
+          game_duration: result.gameDuring || 30,
+          coins_cost: machineData?.price || 10,
+          user_coins_after: result.totalGold
+        })
+        
         // Update game state to PLAYING - CRITICAL for control access
         console.log('Setting game state to PLAYING for control access')
         setGameState(GameState.PLAYING)
@@ -413,6 +448,8 @@ export default function GameRoomPage() {
           if (result.totalGold !== undefined) {
             const newCoins = Number(result.totalGold)
             setCoins(newCoins)
+            // Sync coins with Amplitude user properties
+            amplitudeService.updateUserProperties({ coins: newCoins })
             setSuccessMessage(`🎮 Your turn! Game starting... 💰 Coins: ${newCoins}`)
           } else {
             setSuccessMessage('🎮 Your turn! Game starting...')
@@ -422,6 +459,8 @@ export default function GameRoomPage() {
           if (result.totalGold !== undefined) {
             const newCoins = Number(result.totalGold)
             setCoins(newCoins)
+            // Sync coins with Amplitude user properties
+            amplitudeService.updateUserProperties({ coins: newCoins })
             setSuccessMessage(`💰 Game started! Coins: ${newCoins}`)
           } else {
             setSuccessMessage('🎮 Game started!')
@@ -520,6 +559,13 @@ export default function GameRoomPage() {
     // Fixed: camera0Url is front view, camera1Url is back view
     const cameraUrl = newCamera === 0 ? machineData.camera0Url : machineData.camera1Url
     
+    // Track camera switch event
+    amplitudeService.trackGameEvent('CAMERA_SWITCHED', {
+      machine_id: macNo,
+      from_camera: currentCamera,
+      to_camera: newCamera
+    })
+    
     try {
       setIsVideoLoading(true)
       const stream = await signalingRef.current.switchCamera(cameraUrl)
@@ -545,26 +591,46 @@ export default function GameRoomPage() {
     if (!socketClientRef.current || gameState !== GameState.PLAYING || !iAmPlaying) return
     
     let wawaOpt: WawaOptEnum
+    let controlAction: string
     switch (direction) {
       case WawaOptEnum.UP:
         // Up arrow means "back" in the claw machine
         wawaOpt = WawaOptEnum.DOWN
+        controlAction = 'up'
         break
       case WawaOptEnum.DOWN:
         // Down arrow means "front" in the claw machine
         wawaOpt = WawaOptEnum.UP
+        controlAction = 'down'
         break
       case WawaOptEnum.LEFT:
         wawaOpt = WawaOptEnum.LEFT
+        controlAction = 'left'
         break
       case WawaOptEnum.RIGHT:
         wawaOpt = WawaOptEnum.RIGHT
+        controlAction = 'right'
         break
       case WawaOptEnum.GRAB:
         wawaOpt = WawaOptEnum.GRAB
+        controlAction = 'grab'
+        // Track grab/drop action specifically
+        amplitudeService.trackGameEvent('CLAW_DROPPED', {
+          machine_id: macNo,
+          timing: gameTimer
+        })
         break
       default:
         return
+    }
+    
+    // Track control usage (but not for grab as it's tracked separately)
+    if (direction !== WawaOptEnum.GRAB) {
+      amplitudeService.trackGameEvent('CONTROL_USED', {
+        machine_id: macNo,
+        control_action: controlAction as any,
+        control_type: 'button'
+      })
     }
     
     socketClientRef.current.sendWawaMove(wawaOpt)
@@ -597,6 +663,12 @@ export default function GameRoomPage() {
   const handleStartGame = async () => {
     console.log('Requesting to start game...')
     
+    // Track start button click
+    amplitudeService.trackGameEvent('START_BUTTON_CLICKED', {
+      machine_id: macNo,
+      source: gameState === GameState.IN_QUEUE ? 'queue' : 'direct'
+    })
+    
     // Don't change any UI state here - wait for server response
     // Clear any pending reset timeout when starting a new game
     if (!isConnected || !socketClientRef.current || isWaitingForServer) {
@@ -623,6 +695,11 @@ export default function GameRoomPage() {
     console.log('Joining queue...')
     setIsWaitingForServer(true)
     
+    // Track queue join
+    amplitudeService.trackGameEvent('JOINED_QUEUE', {
+      machine_id: macNo
+    })
+    
     // Send join queue request via protobuf
     if (socketClientRef.current) {
       socketClientRef.current.joinQueue(macNo)
@@ -635,6 +712,13 @@ export default function GameRoomPage() {
 
   const handleLeaveQueue = () => {
     console.log('Leaving queue...')
+    
+    // Track queue leave
+    amplitudeService.trackGameEvent('LEFT_QUEUE', {
+      machine_id: macNo,
+      queue_position: queuePosition,
+      queue_size: queueSize
+    })
     
     // Send leave queue request via protobuf
     if (socketClientRef.current) {

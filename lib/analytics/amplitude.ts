@@ -1,5 +1,36 @@
 // Using CDN-based Amplitude instead of npm package
 // Scripts loaded in layout.tsx
+import {
+  AUTH_EVENTS,
+  HOME_EVENTS,
+  LOBBY_EVENTS,
+  GAME_EVENTS,
+  WAWA_EVENTS,
+  PROFILE_EVENTS,
+  LEADERBOARD_EVENTS,
+  ECONOMY_EVENTS,
+  NAVIGATION_EVENTS,
+  PERFORMANCE_EVENTS,
+  ERROR_EVENTS,
+  SESSION_EVENTS
+} from './events';
+
+import type {
+  AuthEventProperties,
+  HomeEventProperties,
+  LobbyEventProperties,
+  GameEventProperties,
+  WawaEventProperties,
+  ProfileEventProperties,
+  LeaderboardEventProperties,
+  EconomyEventProperties,
+  NavigationEventProperties,
+  PerformanceEventProperties,
+  ErrorEventProperties,
+  SessionEventProperties,
+  CommonEventProperties
+} from './event-properties';
+
 declare global {
   interface Window {
     amplitude: any;
@@ -125,9 +156,13 @@ class AmplitudeService {
     if (!this.initialized) return;
     
     try {
-      if (typeof window !== 'undefined' && window.amplitude) {
-        window.amplitude.track(eventName, properties);
-        console.log(`Event tracked: ${eventName}`, properties);
+      if (typeof window !== 'undefined' && window.amplitude && window.amplitude.track) {
+        const eventProperties = {
+          ...this.getCommonProperties(),
+          ...properties
+        };
+        window.amplitude.track(eventName, eventProperties);
+        console.log('Event tracked:', eventName, eventProperties);
       }
     } catch (error) {
       console.error('Failed to track event:', error);
@@ -135,96 +170,29 @@ class AmplitudeService {
   }
 
   /**
-   * Track a page view
+   * Get common properties for all events
    */
-  trackPageView(pageName: string, properties?: any) {
-    if (!this.initialized) return;
-
-    try {
-      if (typeof window !== 'undefined' && window.amplitude) {
-        window.amplitude.track('Page View', {
-          page: pageName,
-          ...properties
-        });
-      }
-    } catch (error) {
-      console.error('Failed to track page view:', error);
-    }
+  private getCommonProperties(): CommonEventProperties {
+    if (typeof window === 'undefined') return {};
+    
+    return {
+      timestamp: new Date().toISOString(),
+      page_url: window.location.pathname,
+      platform: this.getPlatform(),
+      user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+    };
   }
 
-  /**
-   * Track user login
-   */
-  trackLogin(method: 'visitor' | 'email' | 'username', userId: string, userProperties?: any) {
-    this.track('User Login', {
-      method,
-      userId,
-      ...userProperties
-    });
+  private getPlatform(): 'web' | 'mobile' | 'tablet' {
+    if (typeof window === 'undefined') return 'web';
+    
+    const userAgent = navigator.userAgent;
+    if (/tablet|ipad/i.test(userAgent)) return 'tablet';
+    if (/mobile|android|iphone/i.test(userAgent)) return 'mobile';
+    return 'web';
   }
 
-  /**
-   * Track user logout
-   */
-  trackLogout(userId: string) {
-    this.track('User Logout', { userId });
-    if (typeof window !== 'undefined' && window.amplitude) {
-      // Reset user but keep device ID
-      window.amplitude.setUserId(null);
-    }
-  }
 
-  /**
-   * Track game events
-   */
-  trackGameStart(gameId: string, roomId: string, coinCost: number) {
-    this.track('Game Start', {
-      gameId,
-      roomId,
-      coinCost,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  trackGameEnd(gameId: string, result: 'win' | 'lose' | 'timeout', coinsWon: number, duration: number) {
-    this.track('Game End', {
-      gameId,
-      result,
-      coinsWon,
-      duration,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  /**
-   * Track visitor account events
-   */
-  trackVisitorCreated(visitorId: string) {
-    this.track('Visitor Account Created', {
-      visitorId,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  trackVisitorUpgrade(visitorId: string, newUserId: string) {
-    this.track('Visitor Account Upgraded', {
-      visitorId,
-      newUserId,
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  /**
-   * Track coin transactions
-   */
-  trackCoinTransaction(type: 'earned' | 'spent', amount: number, reason: string) {
-    this.track('Coin Transaction', {
-      type,
-      amount,
-      reason,
-      timestamp: new Date().toISOString()
-    });
-  }
 
   /**
    * Update user properties
@@ -291,9 +259,147 @@ class AmplitudeService {
       console.error('Failed to track revenue:', error);
     }
   }
+
+  /**
+   * Logout user from Amplitude
+   */
+  logout() {
+    try {
+      if (typeof window !== 'undefined' && window.amplitude) {
+        // Track logout event before resetting
+        const sessionDuration = this.getSessionDuration();
+        this.trackAuthEvent('LOGOUT', {
+          session_duration: sessionDuration
+        });
+        
+        // Reset the user ID to clear the session
+        window.amplitude.reset();
+        console.log('User logged out from Amplitude');
+      }
+    } catch (error) {
+      console.error('Failed to logout from Amplitude:', error);
+    }
+  }
+
+  private getSessionDuration(): number {
+    // Calculate session duration if we have a session start time
+    const sessionStart = sessionStorage.getItem('amplitude_session_start');
+    if (sessionStart) {
+      return Date.now() - parseInt(sessionStart);
+    }
+    return 0;
+  }
+
+  // ===== AUTHENTICATION EVENT TRACKING =====
+  trackAuthEvent(event: keyof typeof AUTH_EVENTS, properties?: AuthEventProperties) {
+    this.track(AUTH_EVENTS[event], properties);
+  }
+
+  // ===== HOMEPAGE EVENT TRACKING =====
+  trackHomeEvent(event: keyof typeof HOME_EVENTS, properties?: HomeEventProperties) {
+    this.track(HOME_EVENTS[event], properties);
+  }
+
+  // ===== LOBBY EVENT TRACKING =====
+  trackLobbyEvent(event: keyof typeof LOBBY_EVENTS, properties?: LobbyEventProperties) {
+    this.track(LOBBY_EVENTS[event], properties);
+  }
+
+  // ===== GAME EVENT TRACKING =====
+  trackGameEvent(event: keyof typeof GAME_EVENTS, properties?: GameEventProperties) {
+    this.track(GAME_EVENTS[event], properties);
+  }
+
+  // ===== WAWA MESSAGE EVENT TRACKING =====
+  trackWawaEvent(event: keyof typeof WAWA_EVENTS, properties?: WawaEventProperties) {
+    // Filter out HEARTMESSAGE events as they happen too frequently
+    if (properties?.message_type?.toUpperCase() === 'HEARTMESSAGE' || 
+        properties?.is_heartmessage) {
+      return; // Don't track heart messages
+    }
+    this.track(WAWA_EVENTS[event], properties);
+  }
+
+  // ===== PROFILE EVENT TRACKING =====
+  trackProfileEvent(event: keyof typeof PROFILE_EVENTS, properties?: ProfileEventProperties) {
+    this.track(PROFILE_EVENTS[event], properties);
+  }
+
+  // ===== LEADERBOARD EVENT TRACKING =====
+  trackLeaderboardEvent(event: keyof typeof LEADERBOARD_EVENTS, properties?: LeaderboardEventProperties) {
+    this.track(LEADERBOARD_EVENTS[event], properties);
+  }
+
+  // ===== ECONOMY EVENT TRACKING =====
+  trackEconomyEvent(event: keyof typeof ECONOMY_EVENTS, properties?: EconomyEventProperties) {
+    this.track(ECONOMY_EVENTS[event], properties);
+  }
+
+  // ===== NAVIGATION EVENT TRACKING =====
+  trackNavigationEvent(event: keyof typeof NAVIGATION_EVENTS, properties?: NavigationEventProperties) {
+    this.track(NAVIGATION_EVENTS[event], properties);
+  }
+
+  // ===== PERFORMANCE EVENT TRACKING =====
+  trackPerformanceEvent(event: keyof typeof PERFORMANCE_EVENTS, properties?: PerformanceEventProperties) {
+    this.track(PERFORMANCE_EVENTS[event], properties);
+  }
+
+  // ===== ERROR EVENT TRACKING =====
+  trackErrorEvent(event: keyof typeof ERROR_EVENTS, properties?: ErrorEventProperties) {
+    this.track(ERROR_EVENTS[event], properties);
+  }
+
+  // ===== SESSION EVENT TRACKING =====
+  trackSessionEvent(event: keyof typeof SESSION_EVENTS, properties?: SessionEventProperties) {
+    this.track(SESSION_EVENTS[event], properties);
+  }
+
+  // ===== CONVENIENCE METHODS FOR COMMON EVENTS =====
+  
+  trackGameStart(machineId: string, machineName: string, coinsCost: number, userCoins: number) {
+    this.trackGameEvent('GAME_STARTED', {
+      machine_id: machineId,
+      machine_name: machineName,
+      coins_cost: coinsCost,
+      user_coins_before: userCoins
+    });
+    
+    // Also track economy event
+    this.trackEconomyEvent('COINS_SPENT', {
+      amount: coinsCost,
+      purpose: 'game',
+      balance_before: userCoins,
+      balance_after: userCoins - coinsCost
+    });
+  }
+
+  trackGameWin(machineId: string, coinsWon: number, userCoins: number) {
+    this.trackGameEvent('PRIZE_WON', {
+      machine_id: machineId,
+      coins_won: coinsWon,
+      user_coins_after: userCoins + coinsWon
+    });
+    
+    // Also track economy event
+    this.trackEconomyEvent('COINS_EARNED', {
+      amount: coinsWon,
+      source: 'win',
+      balance_before: userCoins,
+      balance_after: userCoins + coinsWon
+    });
+  }
+
+  trackPageView(pageName: string, properties?: any) {
+    // Amplitude's default page view tracking may handle this
+    // But we can track specific page views with custom properties
+    this.track(`[Navigation] ${pageName} Viewed`, {
+      page: pageName,
+      ...properties
+    });
+  }
 }
 
-// Export singleton instance
 export const amplitudeService = new AmplitudeService();
 
 // CDN-based Amplitude is available globally as window.amplitude

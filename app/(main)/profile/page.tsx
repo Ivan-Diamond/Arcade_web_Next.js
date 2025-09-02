@@ -1,17 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
+import { amplitudeService } from '@/lib/analytics/amplitude'
+import { PROFILE_EVENTS } from '@/lib/analytics/events'
 
 export default function ProfilePage() {
   const { data: session } = useSession()
   const { user: authUser, logout } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'overview' | 'stats'>('overview')
   const router = useRouter()
+
+  // Track profile page view
+  useEffect(() => {
+    amplitudeService.trackProfileEvent('PAGE_VIEWED', {
+      user_level: (authUser as any)?.level || 1,
+      user_coins: authUser?.coins || 0,
+      total_wins: (authUser as any)?.wins || 0,
+      total_games: (authUser as any)?.gamesPlayed || 0
+    })
+  }, [])
 
   // Use real user data from session
   const user = {
@@ -25,6 +37,11 @@ export default function ProfilePage() {
   }
 
   const handleLogout = async () => {
+    // Track logout
+    amplitudeService.trackProfileEvent('USER_LOGGED_OUT', {
+      source: 'profile_page'
+    })
+    
     // Clear visitor-related localStorage items
     localStorage.removeItem('isVisitorAccount');
     localStorage.removeItem('visitorUsername');
@@ -35,16 +52,25 @@ export default function ProfilePage() {
   }
 
   const handleChangeName = () => {
+    // Track name change attempt
+    amplitudeService.trackProfileEvent('NAME_CHANGE_CLICKED', {})
+    
     // TODO: Implement name change
     console.log('Change name clicked')
   }
 
   const handleFeedback = () => {
+    // Track feedback click
+    amplitudeService.trackProfileEvent('FEEDBACK_OPENED', {})
+    
     // TODO: Implement feedback
     console.log('Feedback clicked')
   }
 
   const handleHistory = () => {
+    // Track history view
+    amplitudeService.trackProfileEvent('HISTORY_VIEWED', {})
+    
     // TODO: Implement history
     console.log('History clicked')
   }
@@ -150,7 +176,14 @@ export default function ProfilePage() {
           {(['overview', 'stats'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab)
+                // Track tab switch
+                amplitudeService.trackProfileEvent('TAB_CHANGED', {
+                  from_tab: activeTab,
+                  to_tab: tab
+                })
+              }}
               className={`px-6 py-2 rounded-lg font-semibold capitalize transition-all ${
                 activeTab === tab
                   ? 'bg-neon-cyan/20 text-neon-cyan border-2 border-neon-cyan'

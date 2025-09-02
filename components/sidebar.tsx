@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { UserInfo } from '@/components/user-info';
 import { VisitorStatusBadge } from '@/components/visitor-upgrade-prompt';
+import { amplitudeService } from '@/lib/analytics/amplitude';
 
 interface SidebarProps {
   navItems: Array<{
@@ -38,6 +39,15 @@ export function Sidebar({ navItems, pathname, user, handleLogout }: SidebarProps
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => {
+                    // Track navigation click
+                    amplitudeService.trackNavigationEvent('NAV_ITEM_CLICKED', {
+                      from_page: pathname,
+                      to_page: item.href,
+                      nav_item: item.label,
+                      source: 'desktop_sidebar'
+                    });
+                  }}
                   className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
                     isActive 
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 

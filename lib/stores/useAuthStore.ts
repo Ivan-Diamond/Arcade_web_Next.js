@@ -47,9 +47,10 @@ export const useAuthStore = create<AuthState>()(
           // Track login event
           const user = get().user
           if (user) {
-            amplitudeService.trackLogin('username', user.id || user.username, {
-              username: user.username,
-              userType: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+            amplitudeService.trackAuthEvent('LOGIN_SUCCESS', {
+              method: 'credentials',
+              user_id: user.id || user.username,
+              user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
             })
           }
           
@@ -79,7 +80,10 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         const user = get().user
         if (user) {
-          amplitudeService.trackLogout(user.id || user.username)
+          amplitudeService.trackAuthEvent('LOGOUT', {
+            user_id: user.id || user.username,
+            user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+          })
         }
         
         await signOut({ redirect: false })
@@ -94,9 +98,19 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (updates) => {
         const currentUser = get().user
         if (currentUser) {
+          const updatedUser = { ...currentUser, ...updates }
           set({
-            user: { ...currentUser, ...updates }
+            user: updatedUser
           })
+          
+          // Sync coins with Amplitude user properties
+          if (updates.coins !== undefined) {
+            amplitudeService.updateUserProperties({ 
+              coins: updates.coins,
+              wins: updatedUser.wins,
+              gamesPlayed: updatedUser.gamesPlayed
+            })
+          }
         }
       },
 

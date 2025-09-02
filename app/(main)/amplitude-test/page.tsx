@@ -22,31 +22,40 @@ export default function AmplitudeTestPage() {
   }
 
   const testGameFlow = () => {
-    // Simulate joining a game
-    const mockRoom = {
-      id: 'test-room-1',
-      name: 'Test Claw Machine',
-      coinCost: 2,
-      coinReward: 10,
-      status: 'available' as const,
-      thumbnail: '/images/claw-machine.jpg',
-      difficulty: 'medium' as const,
-      type: 'claw' as const,
-      streamUrl: 'ws://localhost:8080/stream/test-room-1',
-      queueLength: 0
-    }
+    // Track game room entry
+    amplitudeService.trackGameEvent('ROOM_ENTERED', {
+      machine_id: 'test-room-1',
+      machine_name: 'Test Claw Machine',
+      queue_position: 0
+    })
     
-    joinRoom(mockRoom)
+    // Track game start
+    amplitudeService.trackGameStart('test-room-1', 'Test Claw Machine', 2, 100)
     
     // Simulate ending the game after 3 seconds
     setTimeout(() => {
-      endSession('win')
+      // Track game win
+      amplitudeService.trackGameWin('test-room-1', 10, 98)
+      
+      // Track game end
+      amplitudeService.trackGameEvent('GAME_ENDED', {
+        machine_id: 'test-room-1',
+        result: 'win',
+        duration: 30000,
+        moves_count: 5
+      })
+      
       alert('Game session completed and tracked!')
     }, 3000)
   }
 
   const testCoinTransaction = () => {
-    amplitudeService.trackCoinTransaction('earned', 10, 'game_win')
+    amplitudeService.trackEconomyEvent('COINS_EARNED', {
+      amount: 10,
+      source: 'win',
+      balance_before: 100,
+      balance_after: 110
+    })
     alert('Coin transaction tracked!')
   }
 
@@ -84,7 +93,7 @@ export default function AmplitudeTestPage() {
       <div className="bg-dark-card rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Test Events</h2>
         
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={testGameFlow}
             className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg transition-colors"
@@ -104,6 +113,48 @@ export default function AmplitudeTestPage() {
             className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg transition-colors"
           >
             Update User Properties
+          </button>
+          
+          <button
+            onClick={() => {
+              amplitudeService.trackAuthEvent('LOGIN_SUCCESS', {
+                method: 'email',
+                user_id: user?.id || 'test-user'
+              })
+              alert('Login event tracked!')
+            }}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+          >
+            Test Auth Event
+          </button>
+          
+          <button
+            onClick={() => {
+              amplitudeService.trackLobbyEvent('MACHINE_SELECTED', {
+                machine_id: 'machine-123',
+                machine_name: 'Lucky Claw',
+                price: 2,
+                queue_size: 3
+              })
+              alert('Lobby event tracked!')
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          >
+            Test Lobby Event
+          </button>
+          
+          <button
+            onClick={() => {
+              amplitudeService.trackWawaEvent('MESSAGE_SENT', {
+                message_type: 'text',
+                room_id: 'test-room-1',
+                recipient_count: 5
+              })
+              alert('Wawa event tracked!')
+            }}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+          >
+            Test Wawa Event
           </button>
         </div>
       </div>

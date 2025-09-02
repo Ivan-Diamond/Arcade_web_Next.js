@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Medal, Award, Coins } from 'lucide-react'
+import { amplitudeService } from '@/lib/analytics/amplitude'
+import { LEADERBOARD_EVENTS } from '@/lib/analytics/events'
 
 interface RankData {
   user_id: number
@@ -18,6 +20,13 @@ export default function LeaderboardPage() {
   const [rankingsByCoins, setRankingsByCoins] = useState<RankData[]>([])
   const [activeTab, setActiveTab] = useState<'wins' | 'coins'>('wins')
   const [loading, setLoading] = useState(true)
+
+  // Track leaderboard page view
+  useEffect(() => {
+    amplitudeService.trackLeaderboardEvent('VIEWED', {
+      tab: activeTab
+    })
+  }, [])
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -75,7 +84,17 @@ export default function LeaderboardPage() {
         className="flex gap-2 mb-6"
       >
         <button
-          onClick={() => setActiveTab('wins')}
+          onClick={() => {
+            const prevTab = activeTab
+            setActiveTab('wins')
+            // Track tab switch
+            if (prevTab !== 'wins') {
+              amplitudeService.trackLeaderboardEvent('TAB_SWITCHED', {
+                from: prevTab,
+                to: 'wins'
+              })
+            }
+          }}
           className={`px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === 'wins'
               ? 'bg-gradient-to-r from-neon-cyan to-neon-purple text-white'
@@ -88,7 +107,17 @@ export default function LeaderboardPage() {
           </div>
         </button>
         <button
-          onClick={() => setActiveTab('coins')}
+          onClick={() => {
+            const prevTab = activeTab
+            setActiveTab('coins')
+            // Track tab switch
+            if (prevTab !== 'coins') {
+              amplitudeService.trackLeaderboardEvent('TAB_SWITCHED', {
+                from: prevTab,
+                to: 'coins'
+              })
+            }
+          }}
           className={`px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === 'coins'
               ? 'bg-gradient-to-r from-neon-cyan to-neon-purple text-white'
@@ -141,9 +170,17 @@ export default function LeaderboardPage() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.05 * index }}
-                      className={`hover:bg-dark-surface transition-colors ${
+                      className={`hover:bg-dark-surface transition-colors cursor-pointer ${
                         rank <= 3 ? 'bg-gradient-to-r from-transparent to-transparent' : ''
                       }`}
+                      onClick={() => {
+                        // Track player profile click
+                        amplitudeService.trackLeaderboardEvent('PLAYER_PROFILE_CLICKED', {
+                          target_user_id: player.user_id.toString(),
+                          rank: rank,
+                          tab: activeTab
+                        })
+                      }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
