@@ -214,8 +214,6 @@ function MachineCard({
     if (nameUpper.includes('HIT') && nameUpper.includes('CUP')) {
       return '/app/images/machineIcons/hitthecup1.webp';
     }
-    
-    // Check machine types
     if (nameUpper.includes('COLOR')) {
       return '/app/images/machineIcons/color_game_icon.webp';
     }
@@ -223,7 +221,7 @@ function MachineCard({
       return '/app/images/machineIcons/pachinko_icon.webp';
     }
     if (nameUpper.includes('RANDOM') || nameUpper.includes('HOLE')) {
-      return '/app/images/machineIcons/random_hole_icon.webp';
+      return '/app/images/machineIconsWide/random_hole_wide.webp';
     }
     if (nameUpper.includes('REBOUND')) {
       return '/app/images/machineIcons/rebound_game_icon.webp';
@@ -270,11 +268,11 @@ function MachineCard({
         />
         
         {/* Status Badge */}
-        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-semibold ${
+        {/* <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-semibold ${
           isOnline ? 'bg-green-500/20 text-green-400 border border-green-500' : 'bg-red-500/20 text-red-400 border border-red-500'
         }`}>
           {isOnline ? 'ONLINE' : 'OFFLINE'}
-        </div>
+        </div> */}
 
         {/* Queue Badge */}
         {hasQueue && (

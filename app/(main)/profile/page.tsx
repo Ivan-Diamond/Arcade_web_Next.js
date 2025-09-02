@@ -8,31 +8,62 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { amplitudeService } from '@/lib/analytics/amplitude'
 import { PROFILE_EVENTS } from '@/lib/analytics/events'
+import { profileService } from '@/lib/api/services/profileService'
+import { ProfileStats } from '@/lib/types/profile'
 
 export default function ProfilePage() {
   const { data: session } = useSession()
   const { user: authUser, logout } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'overview' | 'stats'>('overview')
+  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
   const router = useRouter()
+
+  // Fetch profile statistics
+  useEffect(() => {
+    const fetchProfileStats = async () => {
+      if (!authUser) return
+      
+      try {
+        setIsLoadingStats(true)
+        setStatsError(null)
+        const response = await profileService.getProfileStats()
+        
+        if (response.success && response.data) {
+          setProfileStats(response.data)
+        } else {
+          setStatsError(response.error || 'Failed to load statistics')
+        }
+      } catch (error) {
+        console.error('Error fetching profile stats:', error)
+        setStatsError('Failed to load statistics')
+      } finally {
+        setIsLoadingStats(false)
+      }
+    }
+
+    fetchProfileStats()
+  }, [authUser])
 
   // Track profile page view
   useEffect(() => {
     amplitudeService.trackProfileEvent('PAGE_VIEWED', {
       user_level: (authUser as any)?.level || 1,
       user_coins: authUser?.coins || 0,
-      total_wins: (authUser as any)?.wins || 0,
-      total_games: (authUser as any)?.gamesPlayed || 0
+      total_wins: profileStats?.totalWins || 0,
+      total_games: profileStats?.totalGames || 0
     })
-  }, [])
+  }, [profileStats])
 
-  // Use real user data from session
+  // Use real user data from session and profile stats
   const user = {
     id: authUser?.id || session?.user?.id || '',
     username: authUser?.username || session?.user?.username || 'Player',
     coins: authUser?.coins || 0,
-    wins: (authUser as any)?.wins || 0,
-    gamesPlayed: (authUser as any)?.gamesPlayed || 0,
-    winRate: (authUser as any)?.winRate || 0,
+    wins: profileStats?.totalWins || 0,
+    gamesPlayed: profileStats?.totalGames || 0,
+    winRate: profileStats?.winRate || 0,
     level: (authUser as any)?.level || 1, // Fixed TypeScript error
   }
 
@@ -71,8 +102,8 @@ export default function ProfilePage() {
     // Track history view
     amplitudeService.trackProfileEvent('HISTORY_VIEWED', {})
     
-    // TODO: Implement history
-    console.log('History clicked')
+    // Navigate to history page
+    router.push('/history')
   }
 
   return (
@@ -117,9 +148,31 @@ export default function ProfilePage() {
             
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-4">
-              <StatItem icon={<Trophy />} value={user.wins} label="Wins" color="cyan" />
-              <StatItem icon={<Gamepad2 />} value={user.gamesPlayed} label="Games" color="purple" />
-              <StatItem icon={<TrendingUp />} value={`${user.winRate}%`} label="Win Rate" color="green" />
+              {isLoadingStats ? (
+                <>
+                  <div className="text-center animate-pulse">
+                    <div className="w-6 h-6 bg-gray-600 rounded mx-auto mb-1"></div>
+                    <div className="h-6 bg-gray-600 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-600 rounded"></div>
+                  </div>
+                  <div className="text-center animate-pulse">
+                    <div className="w-6 h-6 bg-gray-600 rounded mx-auto mb-1"></div>
+                    <div className="h-6 bg-gray-600 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-600 rounded"></div>
+                  </div>
+                  <div className="text-center animate-pulse">
+                    <div className="w-6 h-6 bg-gray-600 rounded mx-auto mb-1"></div>
+                    <div className="h-6 bg-gray-600 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-600 rounded"></div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <StatItem icon={<Trophy />} value={user.wins} label="Wins" color="cyan" />
+                  <StatItem icon={<Gamepad2 />} value={user.gamesPlayed} label="Games" color="purple" />
+                  <StatItem icon={<TrendingUp />} value={`${user.winRate}%`} label="Win Rate" color="green" />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -216,9 +269,25 @@ export default function ProfilePage() {
             
             <DetailedStatCard title="Performance" icon={<Trophy />} color="cyan">
               <div className="space-y-3">
-                <StatRow label="Total Wins" value={user.wins} />
-                <StatRow label="Total Games" value={user.gamesPlayed} />
-                <StatRow label="Win Rate" value={`${user.winRate}%`} />
+                {isLoadingStats ? (
+                  <>
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
+                      <div className="h-4 bg-gray-600 rounded w-2/3"></div>
+                    </div>
+                  </>
+                ) : statsError ? (
+                  <div className="text-red-400 text-sm">
+                    Failed to load statistics
+                  </div>
+                ) : (
+                  <>
+                    <StatRow label="Total Wins" value={user.wins} />
+                    <StatRow label="Total Games" value={user.gamesPlayed} />
+                    <StatRow label="Win Rate" value={`${user.winRate}%`} />
+                  </>
+                )}
               </div>
             </DetailedStatCard>
           </div>
@@ -228,9 +297,21 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <DetailedStatCard title="Games" icon={<Gamepad2 />} color="purple">
               <div className="space-y-3">
-                <StatRow label="Total Played" value={user.gamesPlayed} />
-                <StatRow label="Total Won" value={user.wins} />
-                <StatRow label="Win Rate" value={`${user.winRate}%`} />
+                {isLoadingStats ? (
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
+                    <div className="h-4 bg-gray-600 rounded w-2/3"></div>
+                  </div>
+                ) : statsError ? (
+                  <div className="text-red-400 text-sm">Failed to load statistics</div>
+                ) : (
+                  <>
+                    <StatRow label="Total Played" value={user.gamesPlayed} />
+                    <StatRow label="Total Won" value={user.wins} />
+                    <StatRow label="Win Rate" value={`${user.winRate}%`} />
+                  </>
+                )}
               </div>
             </DetailedStatCard>
             

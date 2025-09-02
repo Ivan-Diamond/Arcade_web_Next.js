@@ -92,6 +92,32 @@ export interface GameState {
   }
 }
 
+// Game Record Types
+export interface GameRecord {
+  id: string
+  userId: string
+  macNo: string
+  machineName: string
+  result: 'win' | 'lose' | 'timeout' | 'pending'
+  coinsSpent: number
+  coinsEarned: number
+  startTime: string
+  endTime: string
+  duration: number
+  createdAt: string
+}
+
+export interface GameHistoryResponse {
+  records: GameRecord[]
+  pagination: {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+    hasMore: boolean
+  }
+}
+
 // Leaderboard Types
 export interface LeaderboardEntry {
   rank: number
