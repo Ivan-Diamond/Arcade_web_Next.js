@@ -113,6 +113,9 @@ export interface ProfileEventProperties {
   games_count?: number;
   time_range?: string;
   source?: string;
+  old_username?: string;
+  new_username?: string;
+  error?: string;
 }
 
 // ===== LEADERBOARD PROPERTIES =====

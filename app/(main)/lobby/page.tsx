@@ -230,9 +230,34 @@ function MachineCard({
       return '/app/images/machineIcons/sweeper_icon.webp';
     }
     if (nameUpper.includes('ANIMATED')) {
-      return '/app/images/machineIcons/moving_claw.webp';
+      if(nameUpper.includes('08')) {
+        return '/app/images/machineIconsWide/teatime_icon.webp';
+      }
+      if(nameUpper.includes('05')) {
+        return '/app/images/machineIconsWide/whiteX_icon.webp';
+      }
+      if(nameUpper.includes('16')) {
+        return '/app/images/machineIconsWide/redX_icon.webp';
+      }
+      if(nameUpper.includes('04')) {
+        return '/app/images/machineIconsWide/roundFlame_icon.webp';
+      }
+      if(nameUpper.includes('20')) {
+        return '/app/images/machineIconsWide/wdrag_icon.webp';
+      }
+      if(nameUpper.includes('03')) {
+        return '/app/images/machineIconsWide/arMania_icon.webp';
+      }
+      if(nameUpper.includes('02')) {
+        return '/app/images/machineIconsWide/brRings_icon.webp';
+      }
+      else{
+        return '/app/images/machineIcons/moving_claw.webp';
+      }
     }
-    
+    if (nameUpper.includes('18')) {
+      return '/app/images/machineIconsWide/msa_all_stars_wide.webp';
+    }
     // Check if it's a classic claw machine (CM_X pattern)
     if (nameUpper.startsWith('CM_') || typeUpper.includes('CLAW')) {
       return '/app/images/machineIcons/claw_machine.webp';

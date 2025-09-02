@@ -75,6 +75,8 @@ export const PROFILE_EVENTS = {
   PAGE_VIEWED: '[Profile] Page Viewed',
   TAB_CHANGED: '[Profile] Tab Changed',
   NAME_CHANGE_CLICKED: '[Profile] Name Change Clicked',
+  NAME_CHANGED_SUCCESS: '[Profile] Name Changed Success',
+  NAME_CHANGE_FAILED: '[Profile] Name Change Failed',
   FEEDBACK_OPENED: '[Profile] Feedback Opened',
   FEEDBACK_SUBMITTED: '[Profile] Feedback Submitted',
   HISTORY_VIEWED: '[Profile] History Viewed',

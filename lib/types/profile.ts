@@ -13,3 +13,16 @@ export interface ProfileStatsResponse {
   data?: ProfileStats
   error?: string
 }
+
+export interface ChangeUsernameRequest {
+  newUsername: string
+}
+
+export interface ChangeUsernameResponse {
+  success: boolean
+  data?: {
+    newUsername: string
+    message: string
+  }
+  error?: string
+}

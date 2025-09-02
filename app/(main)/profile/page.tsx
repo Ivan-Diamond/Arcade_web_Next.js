@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp } from 'lucide-react'
+import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
@@ -10,15 +10,19 @@ import { amplitudeService } from '@/lib/analytics/amplitude'
 import { PROFILE_EVENTS } from '@/lib/analytics/events'
 import { profileService } from '@/lib/api/services/profileService'
 import { ProfileStats } from '@/lib/types/profile'
+import ChangeNameModal from '@/components/ui/ChangeNameModal'
 
 export default function ProfilePage() {
-  const { data: session } = useSession()
-  const { user: authUser, logout } = useAuthStore()
+  const { data: session, status, update } = useSession()
+  const { logout, user: authUser } = useAuthStore()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'overview' | 'stats'>('overview')
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [statsError, setStatsError] = useState<string | null>(null)
-  const router = useRouter()
+  const [isChangeNameModalOpen, setIsChangeNameModalOpen] = useState(false)
+  const [isChangingName, setIsChangingName] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   // Fetch profile statistics
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function ProfilePage() {
     wins: profileStats?.totalWins || 0,
     gamesPlayed: profileStats?.totalGames || 0,
     winRate: profileStats?.winRate || 0,
-    level: (authUser as any)?.level || 1, // Fixed TypeScript error
+    level: (authUser as any)?.level || 1,
   }
 
   const handleLogout = async () => {
@@ -74,9 +78,9 @@ export default function ProfilePage() {
     })
     
     // Clear visitor-related localStorage items
-    localStorage.removeItem('isVisitorAccount');
-    localStorage.removeItem('visitorUsername');
-    localStorage.removeItem('upgradingFromVisitor');
+    localStorage.removeItem('isVisitorAccount')
+    localStorage.removeItem('visitorUsername')
+    localStorage.removeItem('upgradingFromVisitor')
     
     await logout()
     router.push('/login')
@@ -86,8 +90,51 @@ export default function ProfilePage() {
     // Track name change attempt
     amplitudeService.trackProfileEvent('NAME_CHANGE_CLICKED', {})
     
-    // TODO: Implement name change
-    console.log('Change name clicked')
+    setIsChangeNameModalOpen(true)
+  }
+
+  const handleUsernameChange = async (newUsername: string) => {
+    try {
+      setIsChangingName(true)
+      const response = await profileService.changeUsername(newUsername)
+      
+      if (response.success) {
+        // Track successful name change
+        amplitudeService.trackProfileEvent('NAME_CHANGED_SUCCESS', {
+          old_username: user.username,
+          new_username: newUsername
+        })
+        
+        // Update the auth store with new username
+        if (authUser) {
+          useAuthStore.getState().updateUser({
+            username: newUsername
+          })
+        }
+        
+        // Refresh session to update JWT with new username
+        await update({ username: newUsername })
+        
+        // Show success message
+        setSuccessMessage('Username changed successfully!')
+        setTimeout(() => setSuccessMessage(''), 3000)
+        
+        // Close modal
+        setIsChangeNameModalOpen(false)
+      } else {
+        // Track failed name change
+        amplitudeService.trackProfileEvent('NAME_CHANGE_FAILED', {
+          error: response.error
+        })
+        
+        throw new Error(response.error || 'Failed to change username')
+      }
+    } catch (error: any) {
+      console.error('Error changing username:', error)
+      throw error
+    } finally {
+      setIsChangingName(false)
+    }
   }
 
   const handleFeedback = () => {
@@ -218,6 +265,19 @@ export default function ProfilePage() {
         </button>
       </motion.div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-3 mb-6"
+        >
+          <CheckCircle className="w-5 h-5 text-green-500" />
+          <span className="text-green-400">{successMessage}</span>
+        </motion.div>
+      )}
+
       {/* Tabs */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -331,6 +391,15 @@ export default function ProfilePage() {
           </div>
         )}
       </motion.div>
+
+      {/* Change Name Modal */}
+      <ChangeNameModal
+        isOpen={isChangeNameModalOpen}
+        onClose={() => setIsChangeNameModalOpen(false)}
+        onSubmit={handleUsernameChange}
+        currentUsername={user.username}
+        isLoading={isChangingName}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { ProfileStatsResponse } from '@/lib/types/profile'
+import { ProfileStatsResponse, ChangeUsernameResponse } from '@/lib/types/profile'
 
 class ProfileService {
   async getProfileStats(): Promise<ProfileStatsResponse> {
@@ -21,6 +21,35 @@ class ProfileService {
       return {
         success: false,
         error: 'Failed to fetch profile statistics'
+      }
+    }
+  }
+
+  async changeUsername(newUsername: string): Promise<ChangeUsernameResponse> {
+    try {
+      const response = await fetch('/app/api/profile/change-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ newUsername }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to change username'
+        }
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error changing username:', error)
+      return {
+        success: false,
+        error: 'Failed to change username'
       }
     }
   }
