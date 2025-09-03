@@ -150,6 +150,22 @@ export default function HowToPlay({ gameName, machineName, price = 10 }: HowToPl
       }
     }
     
+    if (name.includes('BINGO')) {
+      return {
+        title: 'Bingo Challenge',
+        cost: 0,
+        description: 'Master the art of strategic ball placement on an illuminated 4×4 grid!',
+        objective: 'Strategically drop balls through the blue-lit holes to create winning patterns. Each ball that passes through a hole permanently illuminates it, building your path to victory across multiple rounds.',
+        rewards: '• Four-in-a-row victory: 40 coins\n• Pattern completion resets the board for fresh opportunities',
+        controls: `• ⬅️➡️ Move claw left/right
+• ⬆️⬇️ Move claw forward/back  
+• 🎯 Press CATCH to release ball`,
+        tips: 'Plan your moves carefully! Lit holes persist between games, so consider both immediate opportunities and long-term pattern building strategies.',
+        color: 'border-indigo-500',
+        icon: Target
+      }
+    }
+    
     // Default rules for unknown games
     return {
       title: 'Claw Machine',
