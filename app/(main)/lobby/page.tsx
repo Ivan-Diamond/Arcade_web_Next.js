@@ -258,6 +258,9 @@ function MachineCard({
     if (nameUpper.includes('18')) {
       return '/app/images/machineIconsWide/msa_all_stars_wide.webp';
     }
+    if (nameUpper.includes('19')) {
+      return '/app/images/machineIconsWide/gym_girls_msa.webp';
+    }
     // Check if it's a classic claw machine (CM_X pattern)
     if (nameUpper.startsWith('CM_') || typeUpper.includes('CLAW')) {
       return '/app/images/machineIcons/claw_machine.webp';

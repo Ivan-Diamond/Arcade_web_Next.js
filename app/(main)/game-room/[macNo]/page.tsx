@@ -19,6 +19,7 @@ import { GameControls } from '@/components/game-controls/GameControls'
 import { MobileGameControls } from '@/components/game-controls/MobileGameControls'
 import HowToPlay from '@/components/game/HowToPlay'
 import { amplitudeService } from '@/lib/analytics/amplitude'
+import { GameManagementPanel } from '@/components/game/GameManagementPanel'
 
 // Game states matching Flutter implementation
 enum GameState {
@@ -450,20 +451,17 @@ export default function GameRoomPage() {
             setCoins(newCoins)
             // Sync coins with Amplitude user properties
             amplitudeService.updateUserProperties({ coins: newCoins })
-            setSuccessMessage(`🎮 Your turn! Game starting... 💰 Coins: ${newCoins}`)
+            setSuccessMessage(`🎮 Your turn! Game starting...`)
           } else {
             setSuccessMessage('🎮 Your turn! Game starting...')
           }
         } else {
-          // Direct game start
+          // Direct game start - update coins without showing success message
           if (result.totalGold !== undefined) {
             const newCoins = Number(result.totalGold)
             setCoins(newCoins)
             // Sync coins with Amplitude user properties
             amplitudeService.updateUserProperties({ coins: newCoins })
-            setSuccessMessage(`💰 Game started! Coins: ${newCoins}`)
-          } else {
-            setSuccessMessage('🎮 Game started!')
           }
         }
         setTimeout(() => setSuccessMessage(null), 4000)
@@ -787,79 +785,6 @@ export default function GameRoomPage() {
               className="w-full h-full object-contain"
             />
             
-            {gameState !== GameState.PLAYING && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                <div className="text-center p-6 max-w-md">
-                  {/* Error message */}
-                  {errorMessage && (
-                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg backdrop-blur-sm">
-                      <p className="text-red-400">{errorMessage}</p>
-                    </div>
-                  )}
-                  
-                  {/* Success message */}
-                  {successMessage && (
-                    <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg backdrop-blur-sm">
-                      <p className="text-green-400">{successMessage}</p>
-                    </div>
-                  )}
-                  
-                  {/* Machine occupation status */}
-                  {gameState === GameState.OTHER_PLAYING && !isWaitingForServer && (
-                    <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg backdrop-blur-sm">
-                      <p className="text-yellow-400">
-                        {currentPlayerName ? `${currentPlayerName} is playing` : 'Machine is currently occupied'}
-                      </p>
-                      {timeRemaining > 0 && (
-                        <p className="text-yellow-400 text-sm mt-1">
-                          Time remaining: {timeRemaining}s
-                        </p>
-                      )}
-                      {isWaitingForServer ? (
-                        <div className="flex items-center justify-center mt-2">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neon-cyan mr-2"></div>
-                          <span className="text-neon-cyan text-sm">Joining queue...</span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleJoinQueue}
-                          className="btn-neon mt-2 px-6 py-2 text-sm"
-                        >
-                          Join Queue
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Queue position */}
-                  {gameState === GameState.IN_QUEUE && (
-                    <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-center mt-1' : ''}`}>
-                      <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-yellow-400`}>Queue Position: {queuePosition}</span>
-                    </div>
-                  )}
-                  
-                  {/* Start button or loading state - only show in IDLE state */}
-                  {gameState === GameState.IDLE && (
-                    isWaitingForServer ? (
-                      <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neon-cyan mb-4"></div>
-                        <p className="text-neon-cyan">Requesting game start...</p>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-neon-cyan mb-4">Ready to play?</p>
-                        <button
-                          onClick={handleStartGame}
-                          className="btn-neon px-8 py-3"
-                        >
-                          Start Game
-                        </button>
-                      </>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
           </div>
           
           {/* Game Info Bar - Responsive */}
@@ -899,15 +824,14 @@ export default function GameRoomPage() {
       {/* Desktop Controls - Hidden on mobile */}
       {!isMobile && (
         <div className="lg:col-span-1">
-          <div className="card-neon p-6">
-            <h2 className="text-xl font-bold mb-6 text-neon-cyan">Controls</h2>
+          <div className="card-neon p-6 space-y-6">
+            <h2 className="text-xl font-bold text-neon-cyan">Controls</h2>
             
-            {/* Camera Switch Button */}
+            {/* Camera Switch Button - Always Available */}
             <button
               onClick={handleSwitchCamera}
-              disabled={!isConnected || isVideoLoading}
-              className="w-full mb-6 px-4 py-3 bg-dark-surface hover:bg-neon-purple/20 
-                       disabled:opacity-50 disabled:cursor-not-allowed
+              disabled={false}
+              className="w-full px-4 py-3 bg-dark-surface hover:bg-neon-purple/20 
                        rounded-lg border border-neon-purple/50 
                        flex items-center justify-center gap-3 transition-all
                        hover:border-neon-purple hover:shadow-neon-purple"
@@ -919,21 +843,43 @@ export default function GameRoomPage() {
               <SwitchCamera className="w-5 h-5 text-neon-purple" />
             </button>
             
-            {/* Game Controls - Extensible Joystick System */}
-            <GameControls
-              machineName={machineData?.gameName || roomInfo?.gameName || machineData?.name || roomInfo?.machineName}
-              startContinuousMove={startContinuousMove}
-              stopContinuousMove={stopContinuousMove}
-              handleMove={handleMove}
-              disabled={gameState !== GameState.PLAYING || !iAmPlaying}
+            {/* Game Management Panel */}
+            <GameManagementPanel
+              gameState={gameState}
+              currentPlayerName={currentPlayerName}
+              currentPlayerId={currentPlayerId}
+              queuePosition={queuePosition}
+              queueSize={queueSize}
+              timeRemaining={timeRemaining}
+              isWaitingForServer={isWaitingForServer}
+              errorMessage={errorMessage}
+              successMessage={successMessage}
+              isConnected={isConnected}
+              onStartGame={handleStartGame}
+              onJoinQueue={handleJoinQueue}
+              onLeaveQueue={handleLeaveQueue}
             />
             
-            {/* Instructions */}
-            <div className="mt-6 p-4 bg-dark-surface/50 rounded-lg">
-              <p className="text-sm text-gray-400">
-                Use arrow keys to move the claw. Press CATCH to grab prizes!
-              </p>
-            </div>
+            {/* Game Controls - Only show when playing */}
+            {gameState === GameState.PLAYING && iAmPlaying && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-neon-green">Game Controls</h3>
+                <GameControls
+                  machineName={machineData?.gameName || roomInfo?.gameName || machineData?.name || roomInfo?.machineName}
+                  startContinuousMove={startContinuousMove}
+                  stopContinuousMove={stopContinuousMove}
+                  handleMove={handleMove}
+                  disabled={false}
+                />
+                
+                {/* Instructions */}
+                <div className="p-4 bg-dark-surface/50 rounded-lg">
+                  <p className="text-sm text-gray-400">
+                    Use arrow keys to move the claw. Press CATCH to grab prizes!
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -962,6 +908,18 @@ export default function GameRoomPage() {
       onSwitchCamera={handleSwitchCamera}
       disabled={gameState !== GameState.PLAYING || !iAmPlaying}
       currentCamera={currentCamera}
+      gameState={gameState}
+      currentPlayerName={currentPlayerName}
+      queuePosition={queuePosition}
+      queueSize={queueSize}
+      timeRemaining={timeRemaining}
+      isWaitingForServer={isWaitingForServer}
+      errorMessage={errorMessage}
+      successMessage={successMessage}
+      isConnected={isConnected}
+      onStartGame={handleStartGame}
+      onJoinQueue={handleJoinQueue}
+      onLeaveQueue={handleLeaveQueue}
     />
   )}
 </div>
