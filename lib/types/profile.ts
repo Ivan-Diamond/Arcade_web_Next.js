@@ -21,8 +21,9 @@ export interface ChangeUsernameRequest {
 export interface ChangeUsernameResponse {
   success: boolean
   data?: {
-    newUsername: string
-    message: string
+    username: string
+    jwt: string
   }
+  message?: string
   error?: string
 }

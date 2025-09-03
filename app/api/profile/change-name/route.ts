@@ -73,10 +73,12 @@ export async function POST(request: NextRequest) {
     // Check if the response indicates success
     if (data.code === 20000 && data.success !== false) {
       console.log('Username successfully changed to:', trimmedUsername)
+      // Include the JWT token from the backend response
       return NextResponse.json({
         success: true,
         data: {
-          newUsername: trimmedUsername,
+          username: data.data?.username || trimmedUsername,
+          jwt: data.data?.jwt || session.user?.jwt,
           message: 'Username changed successfully'
         }
       })

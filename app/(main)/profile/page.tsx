@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle } from 'lucide-react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut, signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
 import { amplitudeService } from '@/lib/analytics/amplitude'
@@ -63,13 +63,21 @@ export default function ProfilePage() {
   // Use real user data from session and profile stats
   const user = {
     id: authUser?.id || session?.user?.id || '',
-    username: authUser?.username || session?.user?.username || 'Player',
-    coins: authUser?.coins || 0,
+    username: authUser?.username || session?.user?.username || session?.user?.name || 'Player',
+    coins: authUser?.coins || (session?.user as any)?.coins || 0,
     wins: profileStats?.totalWins || 0,
     gamesPlayed: profileStats?.totalGames || 0,
     winRate: profileStats?.winRate || 0,
     level: (authUser as any)?.level || 1,
   }
+  
+  // Debug logging
+  console.log('Profile user data:', {
+    authUser: authUser?.username,
+    sessionUserName: session?.user?.name,
+    sessionUsername: (session?.user as any)?.username,
+    finalUsername: user.username
+  })
 
   const handleLogout = async () => {
     // Track logout
@@ -94,33 +102,42 @@ export default function ProfilePage() {
   }
 
   const handleUsernameChange = async (newUsername: string) => {
+    setIsChangingName(true)
+    setSuccessMessage('')
+    
     try {
-      setIsChangingName(true)
       const response = await profileService.changeUsername(newUsername)
       
-      if (response.success) {
+      if (response.success && response.data) {
         // Track successful name change
         amplitudeService.trackProfileEvent('NAME_CHANGED_SUCCESS', {
-          old_username: user.username,
+          old_username: authUser?.username,
           new_username: newUsername
         })
         
-        // Update the auth store with new username
-        if (authUser) {
-          useAuthStore.getState().updateUser({
-            username: newUsername
-          })
-        }
+        // Update auth store with new username and JWT token
+        const { username: updatedUsername, jwt: newJwt } = response.data
+        console.log('Username change response:', { updatedUsername, newJwt })
         
-        // Refresh session to update JWT with new username
-        await update({ username: newUsername })
+        // Update the auth store
+        const { updateUserAndToken } = useAuthStore.getState()
+        updateUserAndToken(updatedUsername, newJwt)
         
-        // Show success message
-        setSuccessMessage('Username changed successfully!')
-        setTimeout(() => setSuccessMessage(''), 3000)
+        // Update NextAuth session with new username and JWT
+        await update({
+          username: updatedUsername,
+          jwt: newJwt
+        })
         
-        // Close modal
+        // Close modal and show success message
         setIsChangeNameModalOpen(false)
+        setSuccessMessage('Username changed successfully!')
+        
+        // Force a router refresh to update all components
+        setTimeout(() => {
+          router.refresh()
+          window.location.reload() // Ensure full page reload to update session everywhere
+        }, 1000)
       } else {
         // Track failed name change
         amplitudeService.trackProfileEvent('NAME_CHANGE_FAILED', {

@@ -16,6 +16,7 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>
   logout: () => void
   updateUser: (user: Partial<User>) => void
+  updateUserAndToken: (username: string, jwt: string) => void
   checkAuth: () => Promise<void>
   syncWithSession: () => Promise<void>
 }
@@ -114,6 +115,17 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      updateUserAndToken: (username: string, jwt: string) => {
+        const currentUser = get().user
+        if (currentUser) {
+          const updatedUser = { ...currentUser, username }
+          set({
+            user: updatedUser,
+            token: jwt
+          })
+        }
+      },
+
       checkAuth: async () => {
         const token = get().token
         if (!token) {
@@ -151,7 +163,7 @@ export const useAuthStore = create<AuthState>()(
             
             set({
               user,
-              token: (session as any).jwt || null,
+              token: session.user.jwt || null,
               isAuthenticated: true,
               isLoading: false,
             })

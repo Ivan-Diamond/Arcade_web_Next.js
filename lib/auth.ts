@@ -8,11 +8,47 @@ export const authOptions: NextAuthOptions = {
       name: 'Credentials',
       credentials: {
         username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        isJwtAuth: { label: "Is JWT Auth", type: "text" }
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
           return null
+        }
+
+        // Check if this is JWT-based re-authentication (after username change)
+        if (credentials.isJwtAuth === 'true') {
+          // Use the JWT token directly for re-authentication
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msaarcade.com/game/uaa'
+          
+          try {
+            // Verify the JWT by getting user info
+            const response = await fetch(`${API_BASE_URL}/customer/info`, {
+              headers: {
+                'Authorization': `Bearer ${credentials.password}` // JWT is passed as password
+              }
+            })
+            
+            if (response.ok) {
+              const data = await response.json()
+              if (data.success && data.data) {
+                return {
+                  id: data.data.id || credentials.username,
+                  name: credentials.username,
+                  jwt: credentials.password,
+                  coins: data.data.coins || 0,
+                  integral: data.data.integral || 0,
+                  socketPassword: data.data.socketPassword || '',
+                  avatar: data.data.avatar || '',
+                  fullName: data.data.fullName || ''
+                }
+              }
+            }
+            return null
+          } catch (error) {
+            console.error('JWT re-auth error:', error)
+            return null
+          }
         }
 
         // Check if this is a visitor account (don't hash visitor passwords)
@@ -115,7 +151,7 @@ export const authOptions: NextAuthOptions = {
     error: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.username = user.name || ''
@@ -126,6 +162,22 @@ export const authOptions: NextAuthOptions = {
         token.avatar = (user as any).avatar
         token.fullName = (user as any).fullName
       }
+      
+      // Handle session updates (when update() is called)
+      if (trigger === 'update' && session) {
+        console.log('Updating JWT token with session data:', session)
+        if (session.username) {
+          token.username = session.username
+        }
+        if (session.jwt) {
+          token.jwt = session.jwt
+        }
+        // Also update other user properties if they're provided
+        if (session.coins !== undefined) {
+          token.coins = session.coins
+        }
+      }
+      
       return token
     },
     session: async ({ session, token }) => {
@@ -133,6 +185,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.username as string;
+        session.user.username = token.username as string; // Ensure both name and username are set
         session.user.jwt = token.jwt as string;
         session.user.socketPassword = token.socketPassword as string;
         session.user.coins = token.coins as number;
