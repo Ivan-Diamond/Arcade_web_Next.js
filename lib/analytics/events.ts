@@ -11,6 +11,9 @@ export const AUTH_EVENTS = {
   VISITOR_CREATED: '[Auth] Visitor Created',
   VISITOR_CREATION_FAILED: '[Auth] Visitor Creation Failed',
   VISITOR_UPGRADED: '[Auth] Visitor Upgraded',
+  VISITOR_UPGRADE_PAGE_VIEWED: '[Auth] Visitor Upgrade Page Viewed',
+  VISITOR_UPGRADE_ATTEMPTED: '[Auth] Visitor Upgrade Attempted',
+  VISITOR_UPGRADE_FAILED: '[Auth] Visitor Upgrade Failed',
   LOGOUT: '[Auth] Logout',
   PASSWORD_RESET_REQUESTED: '[Auth] Password Reset Requested',
 } as const;
@@ -77,6 +80,7 @@ export const PROFILE_EVENTS = {
   NAME_CHANGE_CLICKED: '[Profile] Name Change Clicked',
   NAME_CHANGED_SUCCESS: '[Profile] Name Changed Success',
   NAME_CHANGE_FAILED: '[Profile] Name Change Failed',
+  UPGRADE_ACCOUNT_CLICKED: '[Profile] Upgrade Account Clicked',
   FEEDBACK_OPENED: '[Profile] Feedback Opened',
   FEEDBACK_SUBMITTED: '[Profile] Feedback Submitted',
   HISTORY_VIEWED: '[Profile] History Viewed',

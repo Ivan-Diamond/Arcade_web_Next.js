@@ -27,3 +27,19 @@ export interface ChangeUsernameResponse {
   message?: string
   error?: string
 }
+
+export interface UpgradeAccountRequest {
+  newUsername: string
+  newPassword: string
+  newEmail?: string
+}
+
+export interface UpgradeAccountResponse {
+  success: boolean
+  data?: {
+    username: string
+    jwt: string
+  }
+  message?: string
+  error?: string
+}

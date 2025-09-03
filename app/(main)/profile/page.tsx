@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle } from 'lucide-react'
+import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle, UserPlus } from 'lucide-react'
 import { useSession, signOut, signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
@@ -23,6 +23,9 @@ export default function ProfilePage() {
   const [isChangeNameModalOpen, setIsChangeNameModalOpen] = useState(false)
   const [isChangingName, setIsChangingName] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  // Check if user is a visitor account from session
+  const isVisitorAccount = session?.user?.isVisitor === true
 
   // Fetch profile statistics
   useEffect(() => {
@@ -85,10 +88,7 @@ export default function ProfilePage() {
       source: 'profile_page'
     })
     
-    // Clear visitor-related localStorage items
-    localStorage.removeItem('isVisitorAccount')
-    localStorage.removeItem('visitorUsername')
-    localStorage.removeItem('upgradingFromVisitor')
+    // Visitor status is now handled by session data
     
     await logout()
     router.push('/login')
@@ -168,6 +168,15 @@ export default function ProfilePage() {
     
     // Navigate to history page
     router.push('/history')
+  }
+
+  const handleUpgradeAccount = () => {
+    // Track upgrade account attempt
+    amplitudeService.trackProfileEvent('UPGRADE_ACCOUNT_CLICKED', {})
+    
+    // Set upgrade flag and redirect to upgrade page
+    localStorage.setItem('upgradingFromVisitor', user.username)
+    router.push('/upgrade')
   }
 
   return (
@@ -257,13 +266,23 @@ export default function ProfilePage() {
           <span className="text-sm font-semibold">Logout</span>
         </button>
         
-        <button
-          onClick={handleChangeName}
-          className="card-neon border-neon-cyan hover:bg-neon-cyan/10 flex flex-col items-center justify-center p-4 transition-all"
-        >
-          <Edit className="w-6 h-6 text-neon-cyan mb-2" />
-          <span className="text-sm font-semibold">Change Name</span>
-        </button>
+{isVisitorAccount ? (
+          <button
+            onClick={handleUpgradeAccount}
+            className="card-neon border-neon-purple hover:bg-neon-purple/10 flex flex-col items-center justify-center p-4 transition-all"
+          >
+            <UserPlus className="w-6 h-6 text-neon-purple mb-2" />
+            <span className="text-sm font-semibold">Upgrade Account</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleChangeName}
+            className="card-neon border-neon-cyan hover:bg-neon-cyan/10 flex flex-col items-center justify-center p-4 transition-all"
+          >
+            <Edit className="w-6 h-6 text-neon-cyan mb-2" />
+            <span className="text-sm font-semibold">Change Name</span>
+          </button>
+        )}
         
         <button
           onClick={handleFeedback}

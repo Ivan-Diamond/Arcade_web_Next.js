@@ -20,6 +20,7 @@ import { MobileGameControls } from '@/components/game-controls/MobileGameControl
 import HowToPlay from '@/components/game/HowToPlay'
 import { amplitudeService } from '@/lib/analytics/amplitude'
 import { GameManagementPanel } from '@/components/game/GameManagementPanel'
+import { formatMachineName } from '@/lib/utils/formatMachineName'
 
 // Game states matching Flutter implementation
 enum GameState {
@@ -751,24 +752,17 @@ export default function GameRoomPage() {
           <span className="sm:hidden">← Back</span>
         </button>
         <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold text-gradient truncate max-w-[150px] sm:max-w-none`}>
-          {machineData?.name || `Machine ${macNo}`}
+          {machineData?.gameName ? formatMachineName(machineData.gameName) : machineData?.name || `Machine ${macNo}`}
         </h1>
       </div>
       
-      {/* Connection Status */}
-      <div className="flex items-center gap-1 md:gap-2">
-        {isConnected ? (
-          <>
-            <Wifi className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-green-500`} />
-            <span className={`text-green-500 ${isMobile ? 'text-sm' : ''} hidden sm:inline`}>Connected</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-red-500`} />
-            <span className={`text-red-500 ${isMobile ? 'text-sm' : ''} hidden sm:inline`}>Disconnected</span>
-          </>
-        )}
-      </div>
+      {/* Connection Status - Only show when disconnected */}
+      {!isConnected && (
+        <div className="flex items-center gap-1 md:gap-2">
+          <WifiOff className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-red-500`} />
+          <span className={`text-red-500 ${isMobile ? 'text-sm' : ''} hidden sm:inline`}>Disconnected</span>
+        </div>
+      )}
     </div>
     {/* Main Content - Responsive Grid */}
     <div className={`${isMobile ? '' : 'grid lg:grid-cols-3 gap-6'}`}>

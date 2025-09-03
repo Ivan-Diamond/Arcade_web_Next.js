@@ -35,7 +35,7 @@ export function VisitorUpgradePrompt() {
     if (visitorUsername) {
       localStorage.setItem('upgradingFromVisitor', visitorUsername);
     }
-    router.push('/register');
+    router.push('/upgrade');
   };
 
   if (!session?.user?.isVisitor || !showPrompt) {
@@ -117,7 +117,7 @@ export function VisitorStatusBadge() {
 
   return (
     <button
-      onClick={() => router.push('/register')}
+      onClick={() => router.push('/upgrade')}
       className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors cursor-pointer"
     >
       <AlertCircle className="h-3 w-3 mr-1" />

@@ -93,10 +93,6 @@ export default function RegisterPage() {
       })
 
       if (result?.ok) {
-        // Clear visitor upgrade flags
-        localStorage.removeItem('upgradingFromVisitor');
-        localStorage.removeItem('isVisitorAccount');
-        localStorage.removeItem('visitorUsername');
         router.push('/lobby');
       } else {
         toast.success('Logged in successfully!')

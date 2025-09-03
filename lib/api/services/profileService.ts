@@ -1,4 +1,4 @@
-import { ProfileStatsResponse, ChangeUsernameResponse } from '@/lib/types/profile'
+import { ProfileStatsResponse, ChangeUsernameResponse, UpgradeAccountResponse, UpgradeAccountRequest } from '@/lib/types/profile'
 
 class ProfileService {
   async getProfileStats(): Promise<ProfileStatsResponse> {
@@ -50,6 +50,35 @@ class ProfileService {
       return {
         success: false,
         error: 'Failed to change username'
+      }
+    }
+  }
+
+  async upgradeAccount(request: UpgradeAccountRequest): Promise<UpgradeAccountResponse> {
+    try {
+      const response = await fetch('/app/api/profile/upgrade-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Failed to upgrade account'
+        }
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error upgrading account:', error)
+      return {
+        success: false,
+        error: 'Failed to upgrade account'
       }
     }
   }

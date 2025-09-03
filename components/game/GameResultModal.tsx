@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, XCircle, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { WawaResultNotification } from '@/lib/types/game-notifications'
 
 interface GameResultModalProps {
@@ -11,8 +11,23 @@ interface GameResultModalProps {
   onPlayAgain?: () => void
 }
 
+// Function to randomly select a reaction face
+const getRandomReactionFace = (isSuccess: boolean): string => {
+  const victoryFaces = ['axel_smiling', 'bianca_smiling', 'iris_smiling', 'lucas_smiling', 'olivia_smiling']
+  const defeatFaces = ['axel_cry', 'bianca_cry', 'iris_cry', 'lucas_cry', 'olivia_cry']
+  
+  const faces = isSuccess ? victoryFaces : defeatFaces
+  const randomIndex = Math.floor(Math.random() * faces.length)
+  return `/app/images/reaction_faces/${faces[randomIndex]}.webp`
+}
+
 export default function GameResultModal({ notification, onClose, onPlayAgain }: GameResultModalProps) {
   console.log('GameResultModal received notification:', notification)
+  
+  // Memoize the reaction face to prevent re-rendering changes
+  const reactionFace = useMemo(() => {
+    return notification ? getRandomReactionFace(notification.isSuccess) : null
+  }, [notification])
   
   useEffect(() => {
     if (notification?.isSuccess) {
@@ -78,42 +93,41 @@ export default function GameResultModal({ notification, onClose, onPlayAgain }: 
                 <X size={24} />
               </button>
 
+              {/* Reaction Face Animation */}
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="mb-4"
-              >
-                {notification.isSuccess ? (
-                  <Trophy className="w-24 h-24 text-neon-yellow mx-auto" />
-                ) : (
-                  <XCircle className="w-24 h-24 text-neon-pink mx-auto" />
-                )}
-              </motion.div>
-
-              {/* Icon Animation */}
-              <motion.div
-                initial={{ y: -20 }}
+                initial={{ y: -20, scale: 0 }}
                 animate={{ 
                   y: [0, -10, 0],
+                  scale: 1,
                   transition: {
-                    repeat: Infinity,
-                    duration: 2,
-                    ease: "easeInOut"
+                    y: {
+                      repeat: Infinity,
+                      duration: 2,
+                      ease: "easeInOut"
+                    },
+                    scale: {
+                      delay: 0.2,
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 20
+                    }
                   }
                 }}
                 className="flex justify-center mb-6"
               >
                 <div className={`
-                  w-32 h-32 rounded-full flex items-center justify-center
+                  w-32 h-32 rounded-full flex items-center justify-center p-2
                   ${isSuccess 
                     ? 'bg-gradient-to-br from-neon-green/20 to-neon-cyan/20 border-2 border-neon-green' 
                     : 'bg-gradient-to-br from-neon-pink/20 to-neon-purple/20 border-2 border-neon-pink'}
+                  shadow-lg overflow-hidden
                 `}>
-                  {isSuccess ? (
-                    <Trophy className="w-16 h-16 text-neon-green animate-pulse" />
-                  ) : (
-                    <XCircle className="w-16 h-16 text-neon-pink" />
+                  {reactionFace && (
+                    <img 
+                      src={reactionFace}
+                      alt={isSuccess ? 'Victory reaction' : 'Defeat reaction'}
+                      className="w-full h-full object-cover rounded-full"
+                    />
                   )}
                 </div>
               </motion.div>

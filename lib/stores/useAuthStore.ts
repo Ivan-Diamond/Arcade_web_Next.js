@@ -48,10 +48,14 @@ export const useAuthStore = create<AuthState>()(
           // Track login event
           const user = get().user
           if (user) {
+            // Get session to determine user type
+            const session = await getSession()
+            const userType = session?.user?.isVisitor ? 'visitor' : 'registered'
+            
             amplitudeService.trackAuthEvent('LOGIN_SUCCESS', {
               method: 'credentials',
               user_id: user.id || user.username,
-              user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+              user_type: userType
             })
           }
           
@@ -81,9 +85,13 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         const user = get().user
         if (user) {
+          // Get session to determine user type
+          const session = await getSession()
+          const userType = session?.user?.isVisitor ? 'visitor' : 'registered'
+          
           amplitudeService.trackAuthEvent('LOGOUT', {
             user_id: user.id || user.username,
-            user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+            user_type: userType
           })
         }
         

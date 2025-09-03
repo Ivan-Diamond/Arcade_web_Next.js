@@ -61,11 +61,6 @@ export default function MainLayout({
   }, [isAuthenticated, router, isInitializing])
 
   const handleLogout = async () => {
-    // Clear visitor-related localStorage items
-    localStorage.removeItem('isVisitorAccount');
-    localStorage.removeItem('visitorUsername');
-    localStorage.removeItem('upgradingFromVisitor');
-    
     await logout()
     router.push('/login')
   }

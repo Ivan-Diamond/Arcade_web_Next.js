@@ -25,7 +25,7 @@ function AmplitudeProvider({ children }: { children: ReactNode }) {
         id: user.id || user.email || 'unknown',
         username: user.username || user.name,
         email: user.email,
-        userType: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered',
+        userType: user.isVisitor ? 'visitor' : 'registered',
         coins: user.coins || 0
       })
     } else if (status === 'unauthenticated') {

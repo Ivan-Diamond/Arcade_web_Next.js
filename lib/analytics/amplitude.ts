@@ -178,8 +178,8 @@ class AmplitudeService {
     return {
       timestamp: new Date().toISOString(),
       page_url: window.location.pathname,
-      platform: this.getPlatform(),
-      user_type: localStorage.getItem('isVisitorAccount') === 'true' ? 'visitor' : 'registered'
+      platform: this.getPlatform()
+      // user_type should be passed explicitly by calling code based on session data
     };
   }
 

@@ -72,10 +72,6 @@ export default function HomePage() {
         });
 
         if (result?.ok) {
-          // Store visitor status in localStorage for future reference
-          localStorage.setItem('isVisitorAccount', 'true');
-          localStorage.setItem('visitorUsername', data.data.username);
-          
           // Track successful visitor creation
           amplitudeService.trackAuthEvent('VISITOR_CREATED', {
             source: 'homepage',
