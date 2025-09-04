@@ -11,6 +11,7 @@ import { PROFILE_EVENTS } from '@/lib/analytics/events'
 import { profileService } from '@/lib/api/services/profileService'
 import { ProfileStats } from '@/lib/types/profile'
 import ChangeNameModal from '@/components/ui/ChangeNameModal'
+import { FeedbackButton } from '@/components/feedback/FeedbackButton'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -157,9 +158,6 @@ export default function ProfilePage() {
   const handleFeedback = () => {
     // Track feedback click
     amplitudeService.trackProfileEvent('FEEDBACK_OPENED', {})
-    
-    // TODO: Implement feedback
-    console.log('Feedback clicked')
   }
 
   const handleHistory = () => {
@@ -284,13 +282,11 @@ export default function ProfilePage() {
           </button>
         )}
         
-        <button
+        <FeedbackButton 
+          variant="profile"
           onClick={handleFeedback}
-          className="card-neon border-neon-purple hover:bg-neon-purple/10 flex flex-col items-center justify-center p-4 transition-all"
-        >
-          <MessageSquare className="w-6 h-6 text-neon-purple mb-2" />
-          <span className="text-sm font-semibold">Feedback</span>
-        </button>
+          className="card-neon border-neon-purple hover:bg-neon-purple/10 flex flex-col items-center justify-center p-4 transition-all w-full"
+        />
         
         <button
           onClick={handleHistory}
