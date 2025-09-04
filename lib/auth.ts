@@ -9,11 +9,72 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
-        isJwtAuth: { label: "Is JWT Auth", type: "text" }
+        isJwtAuth: { label: "Is JWT Auth", type: "text" },
+        loginType: { label: "Login Type", type: "text" }
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
           return null
+        }
+
+        // Check if this is a manager login
+        if (credentials.loginType === 'manager') {
+          try {
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msaarcade.com/game/uaa'
+            
+            // Hash the password with MD5 for manager login
+            const password = crypto.createHash('md5').update(credentials.password).digest('hex')
+            
+            // Send as URL-encoded form data
+            const params = new URLSearchParams()
+            params.append('username', credentials.username)
+            params.append('password', password)
+            
+            const url = `${API_BASE_URL}/oauth/manager_login`
+            
+            console.log('Manager login request:', {
+              url: url,
+              username: credentials.username,
+              password: password.substring(0, 8) + '...'
+            })
+            
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: params.toString(),
+            })
+
+            console.log('Manager login response:', {
+              status: response.status,
+              statusText: response.statusText
+            })
+
+            const data = await response.json()
+            console.log('Manager login data:', data)
+            
+            if (data.code === 20000 && data.data && data.data.jwt) {
+              // Manager login successful
+              return {
+                id: 'manager_' + credentials.username,
+                name: credentials.username,
+                email: `${credentials.username}@msaarcade.com`,
+                jwt: data.data.jwt,
+                isManager: true,
+                coins: 0,
+                integral: 0,
+                socketPassword: '',
+                avatar: '',
+                fullName: 'Manager Account'
+              }
+            }
+            
+            return null
+          } catch (error) {
+            console.error('Manager login error:', error)
+            return null
+          }
         }
 
         // Check if this is JWT-based re-authentication (after username change)
@@ -161,6 +222,7 @@ export const authOptions: NextAuthOptions = {
         token.integral = (user as any).integral
         token.avatar = (user as any).avatar
         token.fullName = (user as any).fullName
+        token.isManager = (user as any).isManager || false
       }
       
       // Handle session updates (when update() is called)
@@ -192,6 +254,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).integral = token.integral as number;
         (session.user as any).avatar = token.avatar as string;
         (session.user as any).fullName = token.fullName as string;
+        (session.user as any).isManager = token.isManager as boolean || false;
         
         // Check if this is a visitor account - use the actual account name from token
         const username = (token.username as string || '');

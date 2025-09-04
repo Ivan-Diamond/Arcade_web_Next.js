@@ -12,6 +12,7 @@ declare module 'next-auth' {
       avatarIndex?: number
       avatarUrl?: string
       isVisitor?: boolean
+      isManager?: boolean
     } & DefaultSession['user']
   }
 
@@ -24,6 +25,7 @@ declare module 'next-auth' {
     vipLevel?: number
     avatarIndex?: number
     avatarUrl?: string
+    isManager?: boolean
   }
 }
 
@@ -44,5 +46,6 @@ declare module 'next-auth/jwt' {
     integral?: number
     avatar?: string
     fullName?: string
+    isManager?: boolean
   }
 }
