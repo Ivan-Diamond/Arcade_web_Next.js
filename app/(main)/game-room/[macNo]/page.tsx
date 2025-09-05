@@ -151,15 +151,14 @@ export default function GameRoomPage() {
     fetchAndInitialize()
   }, [session, macNo])
 
-  // Game timer countdown - reactive to game state changes
+  // Game timer countdown - DECORATIVE ONLY (no game state control)
   useEffect(() => {
     if (gameState === GameState.PLAYING && iAmPlaying && timeRemaining > 0) {
       const interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            // Timer expired - transition to idle
-            setGameState(GameState.IDLE)
-            setIAmPlaying(false)
+            // Timer expired visually - but don't change game state
+            // Let server control when game actually ends
             return 0
           }
           return prev - 1
@@ -471,22 +470,13 @@ export default function GameRoomPage() {
         setTimeRemaining(result.gameDuring || 30) // Use server's game duration
         setGameTimer(0)
         
-        console.log('Game started! Duration:', result.gameDuring || 30)
-        
-        // Start game timer
+        // Clear any existing game timer (timer is now handled by useEffect)
         if (gameTimerRef.current) {
           clearInterval(gameTimerRef.current)
+          gameTimerRef.current = null
         }
-        gameTimerRef.current = setInterval(() => {
-          setTimeRemaining(prev => {
-            if (prev <= 1) {
-              // Timer expired locally - but wait for server's WAWARESULTMESSAGE
-              console.log('Game timer expired locally, waiting for server confirmation...')
-              return 0
-            }
-            return prev - 1
-          })
-        }, 1000)
+        
+        console.log('Game started! Duration:', result.gameDuring || 30)
       }
     }
     
