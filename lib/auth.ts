@@ -234,6 +234,9 @@ export const authOptions: NextAuthOptions = {
         if (session.jwt) {
           token.jwt = session.jwt
         }
+        if (session.avatar !== undefined) {
+          token.avatar = session.avatar
+        }
         // Also update other user properties if they're provided
         if (session.coins !== undefined) {
           token.coins = session.coins

@@ -161,6 +161,8 @@ export const useAuthStore = create<AuthState>()(
             const user: User = {
               id: session.user.id || '',
               username: session.user.username || session.user.name || '',
+              email: (session.user as any).email,
+              avatar: (session.user as any).avatar,
               coins: (session.user as any).coins || 0,
               wins: 0,
               gamesPlayed: 0,

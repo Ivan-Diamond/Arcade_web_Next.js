@@ -43,3 +43,14 @@ export interface UpgradeAccountResponse {
   message?: string
   error?: string
 }
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface ChangePasswordResponse {
+  success: boolean
+  message?: string
+  error?: string
+}

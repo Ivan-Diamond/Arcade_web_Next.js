@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle, UserPlus } from 'lucide-react'
+import { User, LogOut, Edit, MessageSquare, History, Coins, Trophy, Gamepad2, TrendingUp, CheckCircle, UserPlus, Lock, Camera } from 'lucide-react'
+import Image from 'next/image'
 import { useSession, signOut, signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/stores/useAuthStore'
@@ -11,6 +12,7 @@ import { PROFILE_EVENTS } from '@/lib/analytics/events'
 import { profileService } from '@/lib/api/services/profileService'
 import { ProfileStats } from '@/lib/types/profile'
 import ChangeNameModal from '@/components/ui/ChangeNameModal'
+import ChangePasswordModal from '@/components/ui/ChangePasswordModal'
 import { FeedbackButton } from '@/components/feedback/FeedbackButton'
 
 export default function ProfilePage() {
@@ -23,6 +25,8 @@ export default function ProfilePage() {
   const [statsError, setStatsError] = useState<string | null>(null)
   const [isChangeNameModalOpen, setIsChangeNameModalOpen] = useState(false)
   const [isChangingName, setIsChangingName] = useState(false)
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
   // Check if user is a visitor account from session
@@ -177,6 +181,63 @@ export default function ProfilePage() {
     router.push('/upgrade')
   }
 
+  const handleChangePassword = () => {
+    // Track change password attempt
+    amplitudeService.trackProfileEvent('CHANGE_PASSWORD_CLICKED', {})
+    
+    setIsChangePasswordModalOpen(true)
+  }
+
+  const handleChangeAvatar = () => {
+    // TODO: Track change avatar attempt when analytics events are updated
+    // amplitudeService.trackProfileEvent('CHANGE_AVATAR_CLICKED', {})
+    
+    // Navigate to avatar selection page
+    router.push('/avatars')
+  }
+
+  const getAvatarImagePath = (avatarName: string) => {
+    return `/app/images/avatars/${avatarName}_hello.webp`
+  }
+
+  const handlePasswordChange = async (currentPassword: string, newPassword: string) => {
+    setIsChangingPassword(true)
+    setSuccessMessage('')
+    
+    try {
+      const response = await profileService.changePassword({
+        currentPassword,
+        newPassword
+      })
+      
+      if (response.success) {
+        // Track successful password change
+        amplitudeService.trackProfileEvent('PASSWORD_CHANGED_SUCCESS', {})
+        
+        // Close modal and show success message
+        setIsChangePasswordModalOpen(false)
+        setSuccessMessage('Password changed successfully!')
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setSuccessMessage('')
+        }, 5000)
+      } else {
+        // Track failed password change
+        amplitudeService.trackProfileEvent('PASSWORD_CHANGE_FAILED', {
+          error: response.error
+        })
+        
+        throw new Error(response.error || 'Failed to change password')
+      }
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      throw error
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
@@ -200,8 +261,18 @@ export default function ProfilePage() {
           {/* Avatar */}
           <div className="relative">
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-neon-cyan via-neon-purple to-neon-pink p-1">
-              <div className="w-full h-full rounded-full bg-dark-card flex items-center justify-center">
-                <User className="w-16 h-16 text-neon-cyan" />
+              <div className="w-full h-full rounded-full bg-dark-card flex items-center justify-center overflow-hidden">
+                {authUser?.avatar ? (
+                  <Image
+                    src={getAvatarImagePath(authUser.avatar)}
+                    alt={authUser.avatar}
+                    width={128}
+                    height={128}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <User className="w-16 h-16 text-neon-cyan" />
+                )}
               </div>
             </div>
             <div className="absolute bottom-0 right-0 bg-dark-card border-2 border-neon-cyan rounded-full px-2 py-1">
@@ -254,7 +325,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+        className={`grid grid-cols-2 ${isVisitorAccount ? 'md:grid-cols-4' : 'md:grid-cols-6'} gap-4 mb-8`}
       >
         <button
           onClick={handleLogout}
@@ -273,13 +344,31 @@ export default function ProfilePage() {
             <span className="text-sm font-semibold">Upgrade Account</span>
           </button>
         ) : (
-          <button
-            onClick={handleChangeName}
-            className="card-neon border-neon-cyan hover:bg-neon-cyan/10 flex flex-col items-center justify-center p-4 transition-all"
-          >
-            <Edit className="w-6 h-6 text-neon-cyan mb-2" />
-            <span className="text-sm font-semibold">Change Name</span>
-          </button>
+          <>
+            <button
+              onClick={handleChangeName}
+              className="card-neon border-neon-cyan hover:bg-neon-cyan/10 flex flex-col items-center justify-center p-4 transition-all"
+            >
+              <Edit className="w-6 h-6 text-neon-cyan mb-2" />
+              <span className="text-sm font-semibold">Change Name</span>
+            </button>
+            
+            <button
+              onClick={handleChangePassword}
+              className="card-neon border-yellow-500 hover:bg-yellow-500/10 flex flex-col items-center justify-center p-4 transition-all"
+            >
+              <Lock className="w-6 h-6 text-yellow-500 mb-2" />
+              <span className="text-sm font-semibold">Change Password</span>
+            </button>
+
+            <button
+              onClick={handleChangeAvatar}
+              className="card-neon border-neon-pink hover:bg-neon-pink/10 flex flex-col items-center justify-center p-4 transition-all"
+            >
+              <Camera className="w-6 h-6 text-neon-pink mb-2" />
+              <span className="text-sm font-semibold">Change Avatar</span>
+            </button>
+          </>
         )}
         
         <FeedbackButton 
@@ -431,6 +520,14 @@ export default function ProfilePage() {
         onSubmit={handleUsernameChange}
         currentUsername={user.username}
         isLoading={isChangingName}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+        onSubmit={handlePasswordChange}
+        isLoading={isChangingPassword}
       />
     </div>
   )

@@ -1,23 +1,49 @@
 'use client';
 
 import { User, Coins } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface UserInfoProps {
   user: any;
 }
 
 export function UserInfo({ user }: UserInfoProps) {
+  const router = useRouter();
   // Get username from various possible fields
   const displayName = user?.username || user?.name || 'Guest';
   const isVisitor = user?.isVisitor;
+  
+  const handleAvatarClick = () => {
+    router.push('/avatars');
+  };
+
+  const getAvatarImagePath = (avatarName: string) => {
+    return `/app/images/avatars/${avatarName}_hello.webp`;
+  };
   
   return (
     <div className="p-6 border-b border-dark-border bg-gradient-to-br from-dark-card to-dark-hover">
       <div className="flex items-center space-x-4">
         <div className="relative">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg">
-            <User className="h-7 w-7 text-white" />
-          </div>
+          <button
+            onClick={handleAvatarClick}
+            className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer p-1"
+          >
+            <div className="w-full h-full rounded-full bg-dark-card flex items-center justify-center overflow-hidden">
+              {user?.avatar ? (
+                <Image
+                  src={getAvatarImagePath(user.avatar)}
+                  alt={user.avatar}
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <User className="h-7 w-7 text-white" />
+              )}
+            </div>
+          </button>
           {isVisitor && (
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full border-2 border-dark-card flex items-center justify-center">
               <span className="text-xs text-white font-bold">G</span>
